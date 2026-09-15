@@ -47,17 +47,12 @@ git push origin v0.2.0
 | GitLab | 主机、Access Token（api）、项目路径 `group/repo` |
 | AI | OpenAI 兼容 Base URL / Key / Model |
 | 评审 | 最多问题数、diff 上限、默认 dry-run |
-| 更新 | GitHub owner/repo（默认已填 HongSphere/Glint） |
+| 更新 | GitHub Releases（默认 HongSphere/Glint） |
 
 配置保存在系统 userData 目录，不会进 git。
 
 ## 使用流程
 
-1. 设置 → 填 GitLab + AI → 分别点「测试连接」
-2. 评审 → 刷新 MR → 选中 → 开始评审
-3. 默认 **仅预览**；确认后取消勾选再点「写回 GitLab」
-
-## 与 CLI 版关系
-
-仓库根目录的 `scripts/ai_review.py` 仍可作为 CI / 终端方案。  
-桌面端是独立实现（纯 Node 调 GitLab REST + OpenAI 兼容 API），**不依赖** 本机 `glab` / Python。
+1. 设置 → 填 GitLab + AI → 点「测试连接」
+2. 评审 → 搜索/选中 MR → 开始评审
+3. 确认结果后点「写回仓库」，或勾选「评审后自动写回」
