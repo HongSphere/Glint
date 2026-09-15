@@ -218,6 +218,12 @@ function fillSettingsForm() {
   const srcLabel = `${c.update?.owner || 'HongSphere'}/${c.update?.repo || 'Glint'}`;
   const sidebarSrc = $('sidebar-upd-source');
   if (sidebarSrc) sidebarSrc.textContent = srcLabel;
+  const revSel = $('review-project-select');
+  if (revSel && c.gitlab?.projectPath) {
+    // keep if option exists
+    const found = Array.from(revSel.options).some((o) => o.value === c.gitlab.projectPath);
+    if (found) revSel.value = c.gitlab.projectPath;
+  }
 }
 
 function readSettingsForm() {
@@ -271,6 +277,7 @@ async function saveSettings() {
       state.lastReview = null;
       applyMrFilter();
       syncPostButtonVisibility();
+      await loadReviewProjects();
       await refreshMrs();
     }
     toast('设置已保存', 'ok');
@@ -281,13 +288,100 @@ async function saveSettings() {
 
 async function refreshMrs() {
   try {
+    const g = state.config?.gitlab || {};
+    if (!g.host || !g.token || !g.projectPath) {
+      state.mrsAll = [];
+      state.mrs = [];
+      applyMrFilter();
+      return;
+    }
     // Always open MRs only
     const all = await window.api.listMergeRequests({ state: 'opened', search: '' });
     state.mrsAll = all;
     applyMrFilter();
-    toast(`已加载 ${all.length} 个打开中的 MR`, 'ok');
+    if (all.length) {
+      toast(`已加载 ${all.length} 个打开中的 MR`, 'ok');
+    }
   } catch (e) {
     toast(e.message, 'err');
+  }
+}
+
+async function loadReviewProjects() {
+  const sel = $('review-project-select');
+  if (!sel) return;
+  try {
+    const g = state.config?.gitlab || {};
+    if (!g.host || !g.token) {
+      sel.innerHTML = '<option value="">请先在设置配置</option>';
+      sel.value = '';
+      return;
+    }
+    const projects = await window.api.listProjects({
+      perPage: 100,
+      gitlab: { host: g.host, token: g.token, projectPath: g.projectPath || '' },
+    });
+    state.projects = projects;
+    sel.innerHTML = '';
+    const cur = g.projectPath || '';
+    if (!projects.length) {
+      sel.innerHTML = '<option value="">无可用项目</option>';
+      return;
+    }
+    // keep current path as first option if not in list
+    if (cur && !projects.some((p) => p.path === cur)) {
+      const opt = document.createElement('option');
+      opt.value = cur;
+      opt.textContent = cur;
+      sel.appendChild(opt);
+    }
+    for (const p of projects) {
+      const opt = document.createElement('option');
+      opt.value = p.path;
+      opt.textContent = p.archived ? `${p.path} · 归档` : p.path;
+      sel.appendChild(opt);
+    }
+    sel.value = cur || projects[0].path;
+    // enhanceSelect will run after populate if needed
+    if (sel.dataset.enhanced !== '1') {
+      enhanceSelect(sel);
+    } else {
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  } catch (e) {
+    toast(`加载项目失败: ${e.message}`, 'err');
+  }
+}
+
+async function onReviewProjectChange() {
+  const sel = $('review-project-select');
+  if (!sel) return;
+  const path = sel.value.trim();
+  if (!path) return;
+  const g = state.config?.gitlab || {};
+  if (path === (g.projectPath || '')) return;
+  try {
+    state.config = await window.api.setConfig({
+      gitlab: {
+        host: g.host || '',
+        token: g.token || '',
+        projectPath: path,
+      },
+    });
+    // keep settings form in sync
+    const settingsInput = $('cfg-gitlab-project');
+    if (settingsInput) settingsInput.value = path;
+    updateConnStatus();
+    state.mrsAll = [];
+    state.mrs = [];
+    state.selectedIid = null;
+    state.lastReview = null;
+    applyMrFilter();
+    syncPostButtonVisibility();
+    toast(`已切换项目：${path}`, 'ok');
+    await refreshMrs();
+  } catch (e) {
+    toast(`切换项目失败: ${e.message}`, 'err');
   }
 }
 
@@ -751,6 +845,14 @@ function bindEvents() {
   bindProjectCombo();
   $('btn-test-ai').addEventListener('click', testAI);
   $('btn-refresh').addEventListener('click', refreshMrs);
+  const loadRevProj = $('btn-load-review-projects');
+  if (loadRevProj) {
+    loadRevProj.addEventListener('click', () => loadReviewProjects());
+  }
+  const revSel = $('review-project-select');
+  if (revSel) {
+    revSel.addEventListener('change', () => onReviewProjectChange());
+  }
   $('btn-run').addEventListener('click', runReview);
   const stopBtn = $('btn-stop');
   if (stopBtn) {
@@ -974,12 +1076,9 @@ async function init() {
   await loadAbout();
   await loadConfig();
   await loadSkills();
-  // skills list repopulates options; refresh enhanced labels
   enhanceAllSelects();
-  document.querySelectorAll('.cselect').forEach((w) => {
-    const sel = w.querySelector('select');
-    if (sel) sel.value = sel.value;
-  });
+  await loadReviewProjects();
+  enhanceAllSelects();
   const us = await window.api.updateState();
   applyUpdateState(us);
 }

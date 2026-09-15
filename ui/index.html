@@ -59,6 +59,20 @@
             <h1>Merge Request 评审</h1>
             <p class="subline" id="conn-status">尚未连接 GitLab</p>
           </div>
+          <div class="header-actions">
+            <label class="inline-field" for="review-project-select">
+              <span class="inline-label">项目</span>
+              <select class="input select-narrow" id="review-project-select" aria-label="切换项目">
+                <option value="">加载项目…</option>
+              </select>
+            </label>
+            <button class="icon-btn" id="btn-load-review-projects" type="button" title="刷新项目列表" aria-label="刷新项目列表">
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M13.5 2.5v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
         </header>
 
         <div class="workspace">
