@@ -1,0 +1,41 @@
+# GitLab CI: AI review on merge_request_event
+# 需要在 CI/CD Variables 配置：
+#   AI_BASE_URL, AI_API_KEY, AI_MODEL  （OpenAI 兼容）
+#   GITLAB_TOKEN  （project/group access token，api 权限）
+# 可选：GITLAB_HOST 已由 CI_SERVER_HOST 自动提供
+
+stages:
+  - review
+
+ai-mr-review:
+  stage: review
+  image: python:3.11-alpine
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+  variables:
+    GIT_DEPTH: "0"
+    # glab 使用 CI 内 token
+    GITLAB_TOKEN: $GITLAB_TOKEN
+    GITLAB_HOST: $CI_SERVER_HOST
+  before_script:
+    - apk add --no-cache git curl tar gzip ca-certificates
+    - |
+      GLAB_VERSION="1.117.0"
+      curl -sSL -o /tmp/glab.tgz \
+        "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/glab_${GLAB_VERSION}_linux_amd64.tar.gz"
+      tar -xzf /tmp/glab.tgz -C /tmp
+      if [ -x /tmp/bin/glab ]; then
+        install -m 755 /tmp/bin/glab /usr/local/bin/glab
+      else
+        install -m 755 /tmp/glab /usr/local/bin/glab
+      fi
+      glab version
+    - |
+      if [ -n "$GITLAB_TOKEN" ]; then
+        glab auth status || glab auth login --hostname "$CI_SERVER_HOST" --token "$GITLAB_TOKEN"
+      fi
+  script:
+    - python3 scripts/ai_review.py --limit "${AI_REVIEW_MAX_ISSUES:-15}"
+  allow_failure: true
+  # 评审失败不阻塞流水线；需要阻塞可改成 false 并配合 verdict 使用
