@@ -1,0 +1,16 @@
+README.md
+  h_b8a5bec9fccfca 16-63,66-67,81,83-85,91
+docs/macos-gatekeeper.md
+  h_b8a5bec9fccfca 1-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "613ccde8c35f03ee95754dfc6b65a7f1553ef66d",
+  "prompts": {},
+  "humans": {
+    "h_b8a5bec9fccfca": {
+      "author": "zhanghong <zhanghong@meibaokeji.com>"
+    }
+  }
+}
