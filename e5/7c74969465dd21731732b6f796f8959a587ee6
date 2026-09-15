@@ -1,0 +1,18 @@
+ui/app.js
+  h_b8a5bec9fccfca 221-226,280,291-297,302-304,310-387,848-855,1080-1081
+ui/index.html
+  h_b8a5bec9fccfca 62-75
+ui/styles.css
+  h_b8a5bec9fccfca 287-306
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e57c74969465dd21731732b6f796f8959a587ee6",
+  "prompts": {},
+  "humans": {
+    "h_b8a5bec9fccfca": {
+      "author": "zhanghong <zhanghong@meibaokeji.com>"
+    }
+  }
+}
