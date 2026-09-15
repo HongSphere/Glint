@@ -1,0 +1,60 @@
+.env.example
+  h_b8a5bec9fccfca 1-15
+.github/workflows/release.yml
+  h_b8a5bec9fccfca 1-61
+.gitignore
+  h_b8a5bec9fccfca 1-7
+.gitlab-ci.yml
+  h_b8a5bec9fccfca 1-41
+README.md
+  h_b8a5bec9fccfca 1-140
+desktop/.gitignore
+  h_b8a5bec9fccfca 1-7
+desktop/README.md
+  h_b8a5bec9fccfca 1-63
+desktop/assets/skills/gitlab-mr-review/SKILL.md
+  h_b8a5bec9fccfca 1-50
+desktop/package-lock.json
+  h_b8a5bec9fccfca 1-5667
+desktop/package.json
+  h_b8a5bec9fccfca 1-86
+desktop/scripts/test-logic.js
+  h_b8a5bec9fccfca 1-100
+desktop/src/main/config.js
+  h_b8a5bec9fccfca 1-149
+desktop/src/main/gitlab.js
+  h_b8a5bec9fccfca 1-429
+desktop/src/main/index.js
+  h_b8a5bec9fccfca 1-275
+desktop/src/main/review.js
+  h_b8a5bec9fccfca 1-419
+desktop/src/main/skills.js
+  h_b8a5bec9fccfca 1-215
+desktop/src/main/updater.js
+  h_b8a5bec9fccfca 1-120
+desktop/src/preload.js
+  h_b8a5bec9fccfca 1-42
+desktop/src/renderer/app.js
+  h_b8a5bec9fccfca 1-992
+desktop/src/renderer/index.html
+  h_b8a5bec9fccfca 1-265
+desktop/src/renderer/styles.css
+  h_b8a5bec9fccfca 1-1060
+docs/SELF_HOSTED.md
+  h_b8a5bec9fccfca 1-65
+scripts/ai_review.py
+  h_b8a5bec9fccfca 1-652
+scripts/review-local.sh
+  h_b8a5bec9fccfca 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "83e91c204fc9119f1121e67291b99009a522a41a",
+  "prompts": {},
+  "humans": {
+    "h_b8a5bec9fccfca": {
+      "author": "zhanghong <zhanghong@meibaokeji.com>"
+    }
+  }
+}
