@@ -909,7 +909,7 @@ function applyUpdateState(s) {
     msg.textContent = `有更新 ${s.version || ''} · 点击安装`;
     msg.classList.add('ready');
   } else if (s.error) {
-    msg.textContent = '检查更新失败';
+    msg.textContent = s.message || '检查更新失败';
     msg.classList.add('err');
   } else if (s.checking) {
     msg.textContent = '检查中…';

@@ -104,6 +104,8 @@ async fn do_check_and_download(app: AppHandle, _force: bool) -> Result<UpdateSta
             let err_lower = err_msg.to_lowercase();
             if err_lower.contains("404")
                 || err_lower.contains("not found")
+                || err_lower.contains("targetnotfound")
+                || err_lower.contains("target not found")
                 || err_lower.contains("could not find release")
                 || err_lower.contains("no release")
             {
@@ -184,3 +186,21 @@ async fn do_check_and_download(app: AppHandle, _force: bool) -> Result<UpdateSta
 pub fn restart_app(app: &AppHandle) -> Result<(), String> {
     app.restart();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_check_remote_json() {
+        let resp = reqwest::get("https://github.com/HongSphere/Glint/releases/latest/download/latest.json")
+            .await;
+        println!("Response: {:?}", resp);
+        if let Ok(r) = resp {
+            let status = r.status();
+            let text = r.text().await.unwrap_or_default();
+            println!("Status: {}, Text: {}", status, text);
+        }
+    }
+}
+
