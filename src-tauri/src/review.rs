@@ -534,8 +534,21 @@ pub async fn post_review(payload: Value) -> Result<Value, String> {
         }
     }
 
+    let pid_str = if let Some(n) = mr["projectId"].as_u64() {
+        n.to_string()
+    } else if let Some(s) = mr["projectId"].as_str() {
+        s.trim().to_string()
+    } else {
+        String::new()
+    };
+    let pid_opt = if pid_str.is_empty() {
+        None
+    } else {
+        Some(pid_str.as_str())
+    };
+
     // update existing marker note if any
-    let discussions = crate::gitlab::list_discussions(iid).await?;
+    let discussions = crate::gitlab::list_discussions(pid_opt, iid).await?;
     let mut updated = false;
     if let Some(ds) = discussions.as_array() {
         'outer: for d in ds {
@@ -543,7 +556,7 @@ pub async fn post_review(payload: Value) -> Result<Value, String> {
                 for n in notes {
                     if n["body"].as_str().unwrap_or("").contains(MARKER) {
                         let note_id = n["id"].as_u64().unwrap_or(0);
-                        let _ = crate::gitlab::put_note(iid, note_id, &lines.join("\n")).await?;
+                        let _ = crate::gitlab::put_note(pid_opt, iid, note_id, &lines.join("\n")).await?;
                         updated = true;
                         break 'outer;
                     }
@@ -552,7 +565,7 @@ pub async fn post_review(payload: Value) -> Result<Value, String> {
         }
     }
     if !updated {
-        let _ = crate::gitlab::create_note(iid, &lines.join("\n")).await?;
+        let _ = crate::gitlab::create_note(pid_opt, iid, &lines.join("\n")).await?;
     }
 
     let mut inline_count = 0u64;
@@ -602,13 +615,13 @@ pub async fn post_review(payload: Value) -> Result<Value, String> {
                     if side == "new" {
                         position["new_path"] = json!(file);
                         position["new_line"] = json!(line);
-                        if ch["renamed_file"].as_bool().unwrap_or(false) {
-                            position["old_path"] = ch["old_path"].clone();
-                        }
+                        let old_path = ch["old_path"].as_str().unwrap_or(file);
+                        position["old_path"] = json!(old_path);
                     } else {
                         position["old_path"] = json!(file);
                         position["old_line"] = json!(line);
-                        position["new_path"] = ch["new_path"].clone();
+                        let new_path = ch["new_path"].as_str().unwrap_or(file);
+                        position["new_path"] = json!(new_path);
                     }
                     let body = format!(
                         "**[{}] {}**\n\n{}",
@@ -616,7 +629,7 @@ pub async fn post_review(payload: Value) -> Result<Value, String> {
                         iss["title"].as_str().unwrap_or("Issue"),
                         iss["body"].as_str().unwrap_or("")
                     );
-                    if crate::gitlab::create_discussion(iid, json!({"body": body, "position": position}))
+                    if crate::gitlab::create_discussion(pid_opt, iid, json!({"body": body, "position": position}))
                         .await
                         .is_ok()
                     {

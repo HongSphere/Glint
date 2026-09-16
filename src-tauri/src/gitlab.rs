@@ -177,32 +177,50 @@ pub async fn get_mr(iid: u64) -> Result<Value, String> {
     }))
 }
 
-pub async fn create_note(iid: u64, body: &str) -> Result<Value, String> {
+fn resolve_project_enc(custom_pid: Option<&str>) -> Result<String, String> {
+    if let Some(pid) = custom_pid {
+        let p = pid.trim();
+        if !p.is_empty() && p != "null" {
+            return Ok(urlencoding::encode(p).to_string());
+        }
+    }
+    let cfg = gitlab_effective(None);
+    if cfg.project_path.trim().is_empty() {
+        return Err("未配置 GitLab 项目路径".into());
+    }
+    Ok(urlencoding::encode(cfg.project_path.trim()).to_string())
+}
+
+pub async fn create_note(pid: Option<&str>, iid: u64, body: &str) -> Result<Value, String> {
+    let enc = resolve_project_enc(pid)?;
     gitlab_req(
         reqwest::Method::POST,
-        &format!("/merge_requests/{iid}/notes"),
+        &format!("/projects/{enc}/merge_requests/{iid}/notes"),
         Some(json!({ "body": body })),
     )
     .await
 }
 
-pub async fn list_discussions(iid: u64) -> Result<Value, String> {
-    gitlab_get(&format!("/merge_requests/{iid}/discussions?per_page=100")).await
+pub async fn list_discussions(pid: Option<&str>, iid: u64) -> Result<Value, String> {
+    let enc = resolve_project_enc(pid)?;
+    gitlab_get(&format!("/projects/{enc}/merge_requests/{iid}/discussions?per_page=100")).await
 }
 
-pub async fn create_discussion(iid: u64, payload: Value) -> Result<Value, String> {
+pub async fn create_discussion(pid: Option<&str>, iid: u64, payload: Value) -> Result<Value, String> {
+    let enc = resolve_project_enc(pid)?;
     gitlab_req(
         reqwest::Method::POST,
-        &format!("/merge_requests/{iid}/discussions"),
+        &format!("/projects/{enc}/merge_requests/{iid}/discussions"),
         Some(payload),
     )
     .await
 }
 
-pub async fn put_note(iid: u64, note_id: u64, body: &str) -> Result<Value, String> {
+pub async fn put_note(pid: Option<&str>, iid: u64, note_id: u64, body: &str) -> Result<Value, String> {
+    let enc = resolve_project_enc(pid)?;
     gitlab_req(
         reqwest::Method::PUT,
-        &format!("/merge_requests/{iid}/notes/{note_id}"),
+        &format!("/projects/{enc}/merge_requests/{iid}/notes/{note_id}"),
         Some(json!({ "body": body })),
     )
     .await

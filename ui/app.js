@@ -16,6 +16,12 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 
+function formatError(e) {
+  if (!e) return '未知错误';
+  if (typeof e === 'string') return e;
+  return e.message || String(e);
+}
+
 const mediaDark = window.matchMedia('(prefers-color-scheme: dark)');
 
 function resolveTheme(pref) {
@@ -829,7 +835,7 @@ async function postReview(opts = {}) {
       toast(`已自动写回：总结${res.summaryAction === 'updated' ? '已更新' : '已创建'}，行内 ${res.inlineCount} 条`, 'ok');
     }
   } catch (e) {
-    toast(`写回失败: ${e.message}`, 'err');
+    toast(`写回失败: ${formatError(e)}`, 'err');
   } finally {
     $('btn-post').disabled = false;
     syncPostButtonVisibility();
