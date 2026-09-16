@@ -1,0 +1,18 @@
+src-tauri/src/gitlab.rs
+  h_b8a5bec9fccfca 180-195,198,204-206,209-210,213,219-220,223
+src-tauri/src/review.rs
+  h_b8a5bec9fccfca 537-549,551,559,568,618-619,623-624,632
+ui/app.js
+  h_b8a5bec9fccfca 19-24,838
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4d1433b76fbff7b97fa1a068be9f7097e484ca23",
+  "prompts": {},
+  "humans": {
+    "h_b8a5bec9fccfca": {
+      "author": "zhanghong <zhanghong@meibaokeji.com>"
+    }
+  }
+}
