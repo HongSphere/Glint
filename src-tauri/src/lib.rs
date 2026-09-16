@@ -3,6 +3,7 @@ mod error;
 mod gitlab;
 mod review;
 mod skills;
+mod updater;
 
 use tauri::Manager;
 
@@ -13,6 +14,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands_config_get,
             commands_config_set,
@@ -31,6 +33,9 @@ pub fn run() {
             commands_skills_clear_dir,
             commands_skills_pick_file,
             commands_app_info,
+            commands_updater_state,
+            commands_updater_check,
+            commands_updater_install,
         ])
         .setup(|app| {
             let dir = app.path().app_config_dir()?;
@@ -152,4 +157,22 @@ fn commands_app_info(app: tauri::AppHandle) -> Result<serde_json::Value, String>
         "platform": std::env::consts::OS,
         "userData": dir,
     }))
+}
+
+#[tauri::command]
+fn commands_updater_state() -> Result<updater::UpdateState, String> {
+    Ok(updater::get_current_state())
+}
+
+#[tauri::command]
+async fn commands_updater_check(
+    app: tauri::AppHandle,
+    force: Option<bool>,
+) -> Result<updater::UpdateState, String> {
+    updater::check_and_download(app, force.unwrap_or(false)).await
+}
+
+#[tauri::command]
+fn commands_updater_install(app: tauri::AppHandle) -> Result<(), String> {
+    updater::restart_app(&app)
 }

@@ -31,10 +31,9 @@
     appInfo: () => invoke('commands_app_info'),
 
     // Tauri: no-op placeholders so old UI calls don't throw
-    skillRoots: () => Promise.resolve([]),
-    checkUpdate: () => Promise.resolve({ message: '更新由 Release / 系统处理' }),
-    installUpdate: () => Promise.resolve(false),
-    updateState: () => Promise.resolve({ message: '' }),
+    checkUpdate: (force) => invoke('commands_updater_check', { force: !!force }),
+    installUpdate: () => invoke('commands_updater_install'),
+    updateState: () => invoke('commands_updater_state'),
 
     onReviewProgress: function (cb) {
       if (!window.__TAURI__ || !window.__TAURI__.event) return () => {};
@@ -49,6 +48,18 @@
         if (unlisten) unlisten();
       };
     },
-    onUpdateState: () => () => {},
+    onUpdateState: function (cb) {
+      if (!window.__TAURI__ || !window.__TAURI__.event) return () => {};
+      let unlisten = null;
+      window.__TAURI__.event
+        .listen('updater:state', (e) => cb(e.payload))
+        .then((fn) => {
+          unlisten = fn;
+        })
+        .catch(() => {});
+      return () => {
+        if (unlisten) unlisten();
+      };
+    },
   };
 })();
