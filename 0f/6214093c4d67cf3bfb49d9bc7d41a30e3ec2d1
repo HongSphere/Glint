@@ -1,0 +1,14 @@
+LICENSE
+  h_b8a5bec9fccfca 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "0f6214093c4d67cf3bfb49d9bc7d41a30e3ec2d1",
+  "prompts": {},
+  "humans": {
+    "h_b8a5bec9fccfca": {
+      "author": "zhanghong <zhanghong@meibaokeji.com>"
+    }
+  }
+}
