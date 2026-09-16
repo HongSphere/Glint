@@ -1,0 +1,32 @@
+.github/workflows/release.yml
+  h_b8a5bec9fccfca 14-15,20-24,28-29,34-37,40-41,43,45-48,50
+README.md
+  h_b8a5bec9fccfca 11,38
+docs/macos-gatekeeper.md
+  h_b8a5bec9fccfca 43
+src-tauri/src/gitlab.rs
+  h_b8a5bec9fccfca 1,13-18,21,28,43-47,80,82-84,86-87,106
+src-tauri/src/lib.rs
+  h_b8a5bec9fccfca 66-71,95-96
+src-tauri/src/review.rs
+  h_b8a5bec9fccfca 330
+ui/api.js
+  h_b8a5bec9fccfca 1
+ui/app.js
+  h_b8a5bec9fccfca 197,208-214,223-253,262,288-290,325-326,328,334-337,339,348-371,373-377,384-392,394-395,399-400,404-413,431-437,443-586,794-800,803-809,835,844,846,856,858,862,864-865,870,872,874,880,886,890,892,896,898-899,957,1172-1175
+ui/index.html
+  h_b8a5bec9fccfca 20,63-89,111,141,157,160-161,163-177,181,183-186,188-200,204-213,217-273
+ui/styles.css
+  h_b8a5bec9fccfca 287-289,291-296,298-304,306-320,322-364,366-368,370-373,841-842,844-846,848,852-874,876,881-885,887-888,890-901,904-913,915-933,937,950,956-967
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "fbcacbf6a42c813583299c79d1fe705bce57945b",
+  "prompts": {},
+  "humans": {
+    "h_b8a5bec9fccfca": {
+      "author": "zhanghong <zhanghong@meibaokeji.com>"
+    }
+  }
+}
