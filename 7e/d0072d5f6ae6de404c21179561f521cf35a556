@@ -1,0 +1,16 @@
+src-tauri/src/updater.rs
+  h_b8a5bec9fccfca 107-108,189-206
+ui/app.js
+  h_b8a5bec9fccfca 912
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7ed0072d5f6ae6de404c21179561f521cf35a556",
+  "prompts": {},
+  "humans": {
+    "h_b8a5bec9fccfca": {
+      "author": "zhanghong <zhanghong@meibaokeji.com>"
+    }
+  }
+}
