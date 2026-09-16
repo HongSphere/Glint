@@ -40,4 +40,4 @@ xattr -dr com.apple.quarantine /绝对路径/Glint.app
 codesign --force --deep --sign - /Applications/Glint.app
 ```
 
-正式分发需 Apple Developer 证书 + 公证（notarization），见 electron-builder 文档 `mac` / `afterSign`。
+正式分发需 Apple Developer 证书 + 公证（notarization），见 Tauri 官方 macOS 代码签名与公证文档。

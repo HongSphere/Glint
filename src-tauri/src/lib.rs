@@ -63,7 +63,12 @@ fn commands_config_reset() -> Result<serde_json::Value, String> {
 async fn commands_gitlab_test(
     form: Option<serde_json::Value>,
 ) -> Result<serde_json::Value, String> {
-    gitlab::test_gitlab(form.as_ref()).await
+    let section = form
+        .as_ref()
+        .and_then(|f| f.get("gitlab"))
+        .cloned()
+        .or(form);
+    gitlab::test_gitlab(section.as_ref()).await
 }
 
 #[tauri::command]
@@ -87,7 +92,8 @@ async fn commands_gitlab_get_mr(iid: u64) -> Result<serde_json::Value, String> {
 
 #[tauri::command]
 async fn commands_ai_test(form: Option<serde_json::Value>) -> Result<serde_json::Value, String> {
-    review::test_ai(form.as_ref()).await
+    let section = form.as_ref().and_then(|f| f.get("ai")).cloned().or(form);
+    review::test_ai(section.as_ref()).await
 }
 
 #[tauri::command]

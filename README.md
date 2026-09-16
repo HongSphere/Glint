@@ -8,7 +8,7 @@ GitLab Merge Request **AI 代码评审**桌面应用（Tauri / macOS / Windows�
 
 - **前端**：`ui/`（HTML / CSS / JS，复用原界面）
 - **后端**：Rust（`src-tauri`）— GitLab REST、AI chat、配置、技能、评审
-- **壳**：Tauri 2（系统 WebView，安装包显著小于 Electron）
+- **壳**：Tauri 2（系统原生 WebView，极低内存与体积占用）
 
 ## 开发
 
@@ -35,10 +35,8 @@ zip -r Glint.zip src-tauri/target/release/bundle/macos/Glint.app
 
 ## 安装包大小
 
-Tauri 产物通常 **十几 MB** 量级（对比 Electron ~90MB）。
+Tauri 产物通常仅 **3 MB** 左右（macOS DMG 约 3.1MB，zip 约 2.5MB）。
 
 ## 仓库
 
 https://github.com/HongSphere/Glint
-
-`desktop/` 为旧 Electron 版参考实现，主路径已迁移到 Tauri。

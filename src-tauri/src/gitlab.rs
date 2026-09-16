@@ -1,4 +1,4 @@
-use crate::config::{self, gitlab_effective, GitLabCreds};
+use crate::config::{gitlab_effective, GitLabCreds};
 use reqwest::Client;
 use serde_json::{json, Value};
 
@@ -10,18 +10,22 @@ fn client() -> Client {
 }
 
 fn api_base(c: &GitLabCreds) -> String {
-    format!("https://{}/api/v4", c.host)
+    let h = c.host.trim().trim_end_matches('/');
+    if h.starts_with("http://") || h.starts_with("https://") {
+        format!("{}/api/v4", h)
+    } else {
+        format!("https://{}/api/v4", h)
+    }
 }
 
-async fn gitlab_get(path: &str) -> Result<Value, String> {
-    let cfg = gitlab_effective(None);
+async fn gitlab_get_with(cfg: &GitLabCreds, path: &str) -> Result<Value, String> {
     if cfg.host.is_empty() {
         return Err("请先在设置里填写 GitLab 地址".into());
     }
     if cfg.token.is_empty() {
         return Err("请先在设置里填写 GitLab Token（api scope）".into());
     }
-    let url = format!("{}{}", api_base(&cfg), path);
+    let url = format!("{}{}", api_base(cfg), path);
     let res = client()
         .get(&url)
         .header("PRIVATE-TOKEN", &cfg.token)
@@ -34,6 +38,11 @@ async fn gitlab_get(path: &str) -> Result<Value, String> {
         return Err(format!("GitLab API 失败 {status}: {}", text.chars().take(300).collect::<String>()));
     }
     serde_json::from_str(&text).map_err(|e| format!("GitLab 响应解析失败: {e}"))
+}
+
+async fn gitlab_get(path: &str) -> Result<Value, String> {
+    let cfg = gitlab_effective(None);
+    gitlab_get_with(&cfg, path).await
 }
 
 async fn gitlab_req(method: reqwest::Method, path: &str, body: Option<Value>) -> Result<Value, String> {
@@ -68,19 +77,14 @@ pub async fn test_gitlab(pending: Option<&Value>) -> Result<Value, String> {
     if cfg.token.is_empty() {
         return Ok(json!({"ok": false, "message": "未配置 GitLab Token"}));
     }
-    match gitlab_get("/user").await {
+    match gitlab_get_with(&cfg, "/user").await {
         Ok(user) => {
-            let username = user["username"].as_str().unwrap_or(user["name"].as_str().unwrap_or("")).to_string();
-            let mut message = format!("已连接 {username}");
-            if !cfg.project_path.is_empty() {
-                let enc = urlencoding::encode(&cfg.project_path).to_string();
-                if let Ok(project) = gitlab_get(&format!("/projects/{enc}")).await {
-                    let path = project["path_with_namespace"].as_str().unwrap_or("").to_string();
-                    message = format!("已连接 {username} · {path}");
-                }
+            let username = user["username"].as_str().unwrap_or(user["name"].as_str().unwrap_or(""));
+            let message = if !username.is_empty() {
+                format!("已连接 {username}")
             } else {
-                message.push_str("（未填项目路径）");
-            }
+                "连接成功".to_string()
+            };
             Ok(json!({"ok": true, "message": message, "user": {"username": user["username"], "name": user["name"]}}))
         }
         Err(e) => Ok(json!({"ok": false, "message": e})),
@@ -99,7 +103,7 @@ pub async fn list_projects(opts: Option<&Value>) -> Result<Value, String> {
     let q = format!(
         "/projects?membership=true&order_by=last_activity_at&sort=desc&per_page={page}&simple=true"
     );
-    let list = gitlab_get(&q).await?;
+    let list = gitlab_get_with(&cfg, &q).await?;
     let arr = list.as_array().cloned().unwrap_or_default();
     let out: Vec<Value> = arr
         .iter()

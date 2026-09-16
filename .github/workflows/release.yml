@@ -11,51 +11,40 @@ permissions:
 
 jobs:
   release:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            script: dist:mac
-          - os: windows-latest
-            script: dist:win
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: desktop
+          - platform: "macos-latest"
+            args: "--bundles app,dmg"
+          - platform: "windows-latest"
+            args: "--bundles nsis"
+    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: desktop/package-lock.json
 
-      - name: Install
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run ${{ matrix.script }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # 可选：代码签名
-          # CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          # CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
-          # WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          # WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-
-      - name: Upload artifacts to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            desktop/release/*.dmg
-            desktop/release/*.zip
-            desktop/release/*.exe
-            desktop/release/*.blockmap
-            desktop/release/latest*.yml
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Glint ${{ github.ref_name }}"
+          releaseBody: "Glint release ${{ github.ref_name }}"
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

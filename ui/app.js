@@ -194,6 +194,7 @@ function restoreProjectsFromCache() {
     cache.projectsTokenSig === tokenSig
   ) {
     state.projects = cache.projects;
+    updateReviewInputPlaceholder();
     const msg = $('projects-msg');
     if (msg) {
       msg.textContent = `已加载 ${cache.projects.length} 个项目`;
@@ -204,12 +205,13 @@ function restoreProjectsFromCache() {
 
 function fillSettingsForm() {
   const c = state.config;
-  $('cfg-gitlab-host').value = c.gitlab.host || '';
-  $('cfg-gitlab-token').value = c.gitlab.token || '';
-  $('cfg-gitlab-project').value = c.gitlab.projectPath || '';
-  $('cfg-ai-base').value = c.ai.baseUrl || '';
-  $('cfg-ai-key').value = c.ai.apiKey || '';
-  $('cfg-ai-model').value = c.ai.model || '';
+  if (!c) return;
+  $('cfg-gitlab-host').value = c.gitlab?.host || '';
+  $('cfg-gitlab-token').value = c.gitlab?.token || '';
+  if ($('cfg-gitlab-project')) $('cfg-gitlab-project').value = c.gitlab?.projectPath || '';
+  $('cfg-ai-base').value = c.ai?.baseUrl || '';
+  $('cfg-ai-key').value = c.ai?.apiKey || '';
+  $('cfg-ai-model').value = c.ai?.model || '';
 
   if ($('cfg-skill') && c.review?.skillId) {
     $('cfg-skill').value = c.review.skillId;
@@ -218,11 +220,37 @@ function fillSettingsForm() {
   const srcLabel = `${c.update?.owner || 'HongSphere'}/${c.update?.repo || 'Glint'}`;
   const sidebarSrc = $('sidebar-upd-source');
   if (sidebarSrc) sidebarSrc.textContent = srcLabel;
-  const revSel = $('review-project-select');
-  if (revSel && c.gitlab?.projectPath) {
-    // keep if option exists
-    const found = Array.from(revSel.options).some((o) => o.value === c.gitlab.projectPath);
-    if (found) revSel.value = c.gitlab.projectPath;
+  const revInput = $('review-project-input');
+  if (revInput) {
+    revInput.value = c.gitlab?.projectPath || '';
+    revInput.title = revInput.value;
+    updateClearBtn();
+    updateReviewInputPlaceholder();
+  }
+}
+
+function updateReviewInputPlaceholder() {
+  const input = $('review-project-input');
+  if (!input) return;
+  const g = state.config?.gitlab || {};
+  if (!g.host || !g.token) {
+    input.placeholder = '请先在「设置」配置 GitLab';
+    input.disabled = true;
+    return;
+  }
+  input.disabled = false;
+  if (state.projects && state.projects.length) {
+    input.placeholder = '请选择需要评审的项目';
+  } else {
+    input.placeholder = '请点击刷新按钮加载项目';
+  }
+}
+
+function updateClearBtn() {
+  const input = $('review-project-input');
+  const clearBtn = $('btn-clear-review-project');
+  if (input && clearBtn) {
+    clearBtn.hidden = !input.value.trim();
   }
 }
 
@@ -231,7 +259,7 @@ function readSettingsForm() {
     gitlab: {
       host: $('cfg-gitlab-host').value.trim(),
       token: $('cfg-gitlab-token').value.trim(),
-      projectPath: $('cfg-gitlab-project').value.trim(),
+      projectPath: $('cfg-gitlab-project')?.value?.trim() || state.config?.gitlab?.projectPath || '',
     },
     ai: {
       baseUrl: $('cfg-ai-base').value.trim(),
@@ -257,7 +285,9 @@ function updateConnStatus() {
   const text =
     host && project
       ? `${host.replace(/^https?:\/\//, '')} · ${project}`
-      : '请先在设置中完成 GitLab 与 AI 配置';
+      : host
+        ? `${host.replace(/^https?:\/\//, '')} · 请选择项目`
+        : '请先在设置中完成 GitLab 与 AI 配置';
   const el = $('conn-status');
   if (el) el.textContent = text;
 }
@@ -292,13 +322,21 @@ async function refreshMrs() {
     if (!g.host || !g.token || !g.projectPath) {
       state.mrsAll = [];
       state.mrs = [];
+      state.selectedIid = null;
+      state.lastReview = null;
       applyMrFilter();
+      syncPostButtonVisibility();
       return;
     }
     // Always open MRs only
     const all = await window.api.listMergeRequests({ state: 'opened', search: '' });
     state.mrsAll = all;
+    if (!all.some((m) => m.iid === state.selectedIid)) {
+      state.selectedIid = null;
+      state.lastReview = null;
+    }
     applyMrFilter();
+    syncPostButtonVisibility();
     if (all.length) {
       toast(`已加载 ${all.length} 个打开中的 MR`, 'ok');
     }
@@ -307,57 +345,72 @@ async function refreshMrs() {
   }
 }
 
-async function loadReviewProjects() {
-  const sel = $('review-project-select');
-  if (!sel) return;
-  try {
-    const g = state.config?.gitlab || {};
-    if (!g.host || !g.token) {
-      sel.innerHTML = '<option value="">请先在设置配置</option>';
-      sel.value = '';
-      return;
+async function loadReviewProjects(forceRefresh = false) {
+  const input = $('review-project-input');
+  const loadBtn = $('btn-load-review-projects');
+  const g = state.config?.gitlab || {};
+  if (!g.host || !g.token) {
+    if (input) {
+      input.value = '';
+      input.disabled = true;
+      input.title = '请先在「设置」配置 GitLab';
     }
+    updateReviewInputPlaceholder();
+    return;
+  }
+
+  if (input) {
+    input.disabled = false;
+  }
+  updateReviewInputPlaceholder();
+
+  if (!forceRefresh && state.projects && state.projects.length) {
+    if (input && !input.value && g.projectPath) {
+      input.value = g.projectPath;
+      input.title = g.projectPath;
+      updateClearBtn();
+    }
+    return;
+  }
+
+  if (loadBtn) loadBtn.classList.add('loading');
+  try {
     const projects = await window.api.listProjects({
       perPage: 100,
       gitlab: { host: g.host, token: g.token, projectPath: g.projectPath || '' },
     });
     state.projects = projects;
-    sel.innerHTML = '';
     const cur = g.projectPath || '';
-    if (!projects.length) {
-      sel.innerHTML = '<option value="">无可用项目</option>';
-      return;
+    if (input) {
+      if (cur) {
+        input.value = cur;
+      } else {
+        input.value = '';
+      }
+      input.title = input.value;
+      updateClearBtn();
+      updateReviewInputPlaceholder();
     }
-    // keep current path as first option if not in list
-    if (cur && !projects.some((p) => p.path === cur)) {
-      const opt = document.createElement('option');
-      opt.value = cur;
-      opt.textContent = cur;
-      sel.appendChild(opt);
-    }
-    for (const p of projects) {
-      const opt = document.createElement('option');
-      opt.value = p.path;
-      opt.textContent = p.archived ? `${p.path} · 归档` : p.path;
-      sel.appendChild(opt);
-    }
-    sel.value = cur || projects[0].path;
-    // enhanceSelect will run after populate if needed
-    if (sel.dataset.enhanced !== '1') {
-      enhanceSelect(sel);
-    } else {
-      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    if (forceRefresh) {
+      toast(`已加载 ${projects.length} 个项目`, 'ok');
     }
   } catch (e) {
     toast(`加载项目失败: ${e.message}`, 'err');
+  } finally {
+    if (loadBtn) loadBtn.classList.remove('loading');
   }
 }
 
-async function onReviewProjectChange() {
-  const sel = $('review-project-select');
-  if (!sel) return;
-  const path = sel.value.trim();
-  if (!path) return;
+async function selectReviewProject(path) {
+  path = (path || '').trim();
+  const input = $('review-project-input');
+  if (input) {
+    input.value = path;
+    input.title = path;
+  }
+  updateClearBtn();
+  updateReviewInputPlaceholder();
+  closeReviewProjectMenu();
   const g = state.config?.gitlab || {};
   if (path === (g.projectPath || '')) return;
   try {
@@ -368,9 +421,6 @@ async function onReviewProjectChange() {
         projectPath: path,
       },
     });
-    // keep settings form in sync
-    const settingsInput = $('cfg-gitlab-project');
-    if (settingsInput) settingsInput.value = path;
     updateConnStatus();
     state.mrsAll = [];
     state.mrs = [];
@@ -378,10 +428,159 @@ async function onReviewProjectChange() {
     state.lastReview = null;
     applyMrFilter();
     syncPostButtonVisibility();
-    toast(`已切换项目：${path}`, 'ok');
-    await refreshMrs();
+    if (path) {
+      toast(`已切换项目：${path}`, 'ok');
+      await refreshMrs();
+    } else {
+      toast('已清空选定项目', 'info');
+      renderMrList();
+    }
   } catch (e) {
     toast(`切换项目失败: ${e.message}`, 'err');
+  }
+}
+
+function filterProjects(q) {
+  const list = state.projects || [];
+  const query = (q || '').trim().toLowerCase();
+  if (!query) return list.slice(0, 50);
+  return list
+    .filter((p) => p.path.toLowerCase().includes(query) || (p.name || '').toLowerCase().includes(query))
+    .slice(0, 50);
+}
+
+function closeReviewProjectMenu() {
+  const menu = $('review-project-list');
+  const input = $('review-project-input');
+  if (menu) menu.hidden = true;
+  if (input) input.setAttribute('aria-expanded', 'false');
+}
+
+function renderReviewProjectMenu(query) {
+  const menu = $('review-project-list');
+  const input = $('review-project-input');
+  if (!menu || !input) return;
+
+  const items = filterProjects(query);
+  if (!items.length) {
+    menu.innerHTML = '<div class="combo-empty">无匹配项目（可直接输入 group/project 按回车）</div>';
+    menu.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    return;
+  }
+
+  menu.innerHTML = items
+    .map((p) => {
+      const label = p.archived ? `${p.path} · 归档` : p.path;
+      return `<button type="button" class="combo-option" data-path="${escapeHtml(p.path)}" role="option">
+        <span class="combo-label">${escapeHtml(label)}</span>
+      </button>`;
+    })
+    .join('');
+
+  menu.hidden = false;
+  input.setAttribute('aria-expanded', 'true');
+
+  menu.querySelectorAll('.combo-option').forEach((btn) => {
+    btn.addEventListener('mousedown', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      state.projectComboLocked = true;
+      const path = btn.getAttribute('data-path');
+      if (path) {
+        input.value = path;
+        await selectReviewProject(path);
+      }
+      closeReviewProjectMenu();
+      setTimeout(() => {
+        state.projectComboLocked = false;
+      }, 150);
+    });
+  });
+}
+
+function bindReviewProjectCombo() {
+  const input = $('review-project-input');
+  const btn = $('btn-load-review-projects');
+  const clearBtn = $('btn-clear-review-project');
+  if (!input) return;
+
+  updateClearBtn();
+
+  input.addEventListener('focus', () => {
+    if (state.projectComboLocked) return;
+    if (state.projects && state.projects.length) {
+      renderReviewProjectMenu(input.value);
+    }
+  });
+
+  input.addEventListener('input', () => {
+    updateClearBtn();
+    if (state.projectComboLocked) return;
+    if (state.projects && state.projects.length) {
+      renderReviewProjectMenu(input.value);
+    }
+  });
+
+  let blurTimer = null;
+
+  if (clearBtn) {
+    clearBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    clearBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      clearTimeout(blurTimer);
+      input.value = '';
+      updateClearBtn();
+      closeReviewProjectMenu();
+      await selectReviewProject('');
+      input.blur();
+    });
+  }
+
+  input.addEventListener('blur', () => {
+    clearTimeout(blurTimer);
+    blurTimer = setTimeout(() => {
+      if (!state.projectComboLocked) closeReviewProjectMenu();
+    }, 150);
+  });
+
+  input.addEventListener('keydown', async (e) => {
+    if (e.key === 'Escape') {
+      closeReviewProjectMenu();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const val = input.value.trim();
+      await selectReviewProject(val);
+      closeReviewProjectMenu();
+      input.blur();
+    }
+  });
+
+  document.addEventListener('mousedown', (e) => {
+    const combo = $('review-project-combo') || $('review-project-row');
+    if (!combo) return;
+    if (!combo.contains(e.target)) {
+      closeReviewProjectMenu();
+    }
+  });
+
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.classList.add('loading');
+      try {
+        await loadReviewProjects(true);
+        input.focus();
+        renderReviewProjectMenu(input.value || '');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+      }
+    });
   }
 }
 
@@ -587,19 +786,27 @@ async function runReview() {
     }
   } finally {
     state.reviewing = false;
-    runBtn.disabled = false;
     if (stopBtn) stopBtn.hidden = true;
     syncPostButtonVisibility();
   }
 }
 
+function syncRunButtonState() {
+  const runBtn = $('btn-run');
+  if (!runBtn) return;
+  const hasSelectedMr = Boolean(state.selectedIid);
+  runBtn.disabled = state.reviewing || !hasSelectedMr;
+}
+
 function syncPostButtonVisibility() {
   const btn = $('btn-post');
-  if (!btn) return;
-  const auto = $('chk-auto-post')?.checked;
-  const hasResult = Boolean(state.lastReview && state.lastReview.review);
-  // hide while reviewing/re-reviewing, when auto-post is on, or before a result exists
-  btn.hidden = state.reviewing || Boolean(auto) || !hasResult;
+  if (btn) {
+    const auto = $('chk-auto-post')?.checked;
+    const hasResult = Boolean(state.lastReview && state.lastReview.review);
+    // hide while reviewing/re-reviewing, when auto-post is on, or before a result exists
+    btn.hidden = state.reviewing || Boolean(auto) || !hasResult;
+  }
+  syncRunButtonState();
 }
 
 async function postReview(opts = {}) {
@@ -625,125 +832,18 @@ async function postReview(opts = {}) {
     toast(`写回失败: ${e.message}`, 'err');
   } finally {
     $('btn-post').disabled = false;
-    $('btn-run').disabled = false;
+    syncPostButtonVisibility();
   }
 }
 
 async function persistFormBeforeTest() {
-  // no longer auto-saves; kept name for call sites that need form snapshot
   return readSettingsForm();
 }
 
-async function loadProjects() {
-  const msg = $('projects-msg');
-  if (!msg) return;
-  msg.textContent = '加载中…';
-  msg.style.color = 'var(--muted)';
-  try {
-    const form = readSettingsForm();
-    if (!form.gitlab.host || !form.gitlab.token) {
-      msg.textContent = '请先填写主机地址与 Token';
-      msg.style.color = 'var(--danger)';
-      return;
-    }
-    const projects = await window.api.listProjects({
-      perPage: 100,
-      gitlab: form.gitlab,
-    });
-    state.projects = projects;
-    if (!projects.length) {
-      msg.textContent = 'Token 下没有可见项目';
-      msg.style.color = 'var(--warn)';
-      return;
-    }
-    msg.textContent = `已加载 ${projects.length} 个，可输入筛选`;
-    msg.style.color = 'var(--ok)';
-  } catch (e) {
-    msg.textContent = e.message;
-    msg.style.color = 'var(--danger)';
-  }
-}
-
-function filterProjects(q) {
-  const list = state.projects || [];
-  const query = (q || '').trim().toLowerCase();
-  if (!query) return list.slice(0, 30);
-  return list
-    .filter((p) => p.path.toLowerCase().includes(query) || (p.name || '').toLowerCase().includes(query))
-    .slice(0, 30);
-}
-
-function closeProjectMenu() {
-  const menu = $('project-list');
-  const input = $('cfg-gitlab-project');
-  if (menu) menu.hidden = true;
-  if (input) input.setAttribute('aria-expanded', 'false');
-}
-
-function renderProjectMenu(q) {
-  const menu = $('project-list');
-  const input = $('cfg-gitlab-project');
-  if (!menu || !input) return;
-  const items = filterProjects(q);
-  if (!items.length) {
-    menu.hidden = false;
-    menu.innerHTML = '<div class="combo-empty">无匹配项目（可继续手填 group/project）</div>';
-    input.setAttribute('aria-expanded', 'true');
-    return;
-  }
-  menu.innerHTML = items
-    .map((p) => {
-      const label = p.archived ? `${p.path} · 归档` : p.path;
-      return `<button type="button" class="combo-option" data-path="${escapeHtml(p.path)}" role="option"><span class="combo-label">${escapeHtml(label)}</span></button>`;
-    })
-    .join('');
-  menu.hidden = false;
-  input.setAttribute('aria-expanded', 'true');
-  menu.querySelectorAll('.combo-option').forEach((btn) => {
-    btn.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      state.projectComboLocked = true;
-      input.value = btn.dataset.path;
-      closeProjectMenu();
-      updateConnStatus();
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-      // unlock after focus/blur settle so user can reopen by focusing again
-      setTimeout(() => {
-        state.projectComboLocked = false;
-      }, 200);
-    });
-  });
-}
-
-function bindProjectCombo() {
-  const input = $('cfg-gitlab-project');
-  if (!input) return;
-  input.addEventListener('focus', () => {
-    if (state.projectComboLocked) return;
-    if (state.projects && state.projects.length) renderProjectMenu(input.value);
-  });
-  input.addEventListener('input', () => {
-    if (state.projectComboLocked) return;
-    if (state.projects && state.projects.length) renderProjectMenu(input.value);
-  });
-  input.addEventListener('blur', () => {
-    setTimeout(() => {
-      if (!state.projectComboLocked) closeProjectMenu();
-    }, 120);
-  });
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeProjectMenu();
-  });
-  document.addEventListener('mousedown', (e) => {
-    const combo = $('project-combo');
-    if (!combo) return;
-    if (!combo.contains(e.target)) closeProjectMenu();
-  });
-}
-
 async function testGitLab() {
+  const btn = $('btn-test-gitlab');
   const el = $('gitlab-test-msg');
+  if (btn) btn.disabled = true;
   el.textContent = '测试中…';
   el.style.color = 'var(--muted)';
   try {
@@ -753,37 +853,50 @@ async function testGitLab() {
       el.style.color = 'var(--danger)';
       return;
     }
-    const res = await window.api.testGitLab(form);
+    const res = await window.api.testGitLab(form.gitlab);
     el.textContent = res.message;
+    el.title = res.message || '';
     el.style.color = res.ok ? 'var(--ok)' : 'var(--danger)';
   } catch (e) {
     el.textContent = e.message;
+    el.title = e.message || '';
     el.style.color = 'var(--danger)';
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
 async function testAI() {
+  const btn = $('btn-test-ai');
   const el = $('ai-test-msg');
+  if (btn) btn.disabled = true;
   el.textContent = '测试中…';
+  el.title = '';
   el.style.color = 'var(--muted)';
   try {
     const form = readSettingsForm();
     if (!form.ai.apiKey) {
       el.textContent = '请先填写 AI API Key';
+      el.title = '请先填写 AI API Key';
       el.style.color = 'var(--danger)';
       return;
     }
     if (!form.ai.baseUrl || !form.ai.model) {
       el.textContent = '请先填写 Base URL 与模型';
+      el.title = '请先填写 Base URL 与模型';
       el.style.color = 'var(--danger)';
       return;
     }
-    const res = await window.api.testAI(form);
+    const res = await window.api.testAI(form.ai);
     el.textContent = res.message;
+    el.title = res.message || '';
     el.style.color = res.ok ? 'var(--ok)' : 'var(--danger)';
   } catch (e) {
     el.textContent = e.message;
+    el.title = e.message || '';
     el.style.color = 'var(--danger)';
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -841,18 +954,9 @@ function bindEvents() {
     toast('已恢复默认', 'ok');
   });
   $('btn-test-gitlab').addEventListener('click', testGitLab);
-  $('btn-load-projects').addEventListener('click', loadProjects);
-  bindProjectCombo();
+  bindReviewProjectCombo();
   $('btn-test-ai').addEventListener('click', testAI);
   $('btn-refresh').addEventListener('click', refreshMrs);
-  const loadRevProj = $('btn-load-review-projects');
-  if (loadRevProj) {
-    loadRevProj.addEventListener('click', () => loadReviewProjects());
-  }
-  const revSel = $('review-project-select');
-  if (revSel) {
-    revSel.addEventListener('change', () => onReviewProjectChange());
-  }
   $('btn-run').addEventListener('click', runReview);
   const stopBtn = $('btn-stop');
   if (stopBtn) {
@@ -1065,7 +1169,10 @@ function closeAllCSelects(except) {
 }
 
 function enhanceAllSelects() {
-  document.querySelectorAll('select.input').forEach(enhanceSelect);
+  document.querySelectorAll('select.input').forEach((el) => {
+    if (el.id === 'review-project-select') return; // native select
+    enhanceSelect(el);
+  });
 }
 
 async function init() {

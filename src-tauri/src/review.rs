@@ -327,7 +327,7 @@ fn valid_line(diff: &str, side: &str, line: i64) -> bool {
 pub async fn test_ai(pending: Option<&Value>) -> Result<Value, String> {
     let ai = config::ai_effective(pending);
     if ai.api_key.is_empty() {
-        return Ok(json!({"ok": false, "message": "未保存 AI API Key"}));
+        return Ok(json!({"ok": false, "message": "未填写 AI API Key"}));
     }
     let url = format!("{}/chat/completions", ai.base_url);
     let body = json!({

@@ -17,7 +17,7 @@
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
-        <img class="logo" src="../../assets/icon.png" alt="" width="32" height="32" />
+        <img class="logo" src="./icon.png" alt="" width="32" height="32" />
         <div class="brand-meta">
           <div class="brand-title">Glint</div>
           <div class="brand-sub" id="app-version">v—</div>
@@ -60,18 +60,33 @@
             <p class="subline" id="conn-status">尚未连接 GitLab</p>
           </div>
           <div class="header-actions">
-            <label class="inline-field" for="review-project-select">
-              <span class="inline-label">项目</span>
-              <select class="input select-narrow" id="review-project-select" aria-label="切换项目">
-                <option value="">加载项目…</option>
-              </select>
-            </label>
-            <button class="icon-btn" id="btn-load-review-projects" type="button" title="刷新项目列表" aria-label="刷新项目列表">
-              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-                <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                <path d="M13.5 2.5v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
+            <div class="project-row header-project-row" id="review-project-row">
+              <div class="combo" id="review-project-combo">
+                <input
+                  class="input mono"
+                  id="review-project-input"
+                  placeholder="请点击刷新按钮加载项目"
+                  autocomplete="off"
+                  spellcheck="false"
+                  role="combobox"
+                  aria-expanded="false"
+                  aria-autocomplete="list"
+                  aria-controls="review-project-list"
+                />
+                <button class="project-clear-btn" id="btn-clear-review-project" type="button" aria-label="清空选项" title="清空" hidden>
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M4 4l8 8M12 4l-8 8"/>
+                  </svg>
+                </button>
+                <div class="combo-menu" id="review-project-list" role="listbox" hidden></div>
+              </div>
+              <button class="project-refresh-btn" id="btn-load-review-projects" type="button" title="刷新/加载项目列表" aria-label="刷新项目列表">
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                  <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  <path d="M13.5 2.5v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
           </div>
         </header>
 
@@ -93,7 +108,7 @@
             <div class="mr-list" id="mr-list">
               <div class="empty">
                 <div class="empty-title">还没有打开中的 MR</div>
-                <div class="empty-desc">先在设置里配置 GitLab，然后点刷新图标。</div>
+                <div class="empty-desc">先在「设置」配置 GitLab 与 AI，保存后回此页点刷新。</div>
               </div>
             </div>
           </section>
@@ -123,7 +138,7 @@
                 <span>只写总结，不挂行内评论</span>
               </label>
               <div class="spacer"></div>
-              <button class="btn primary" id="btn-run" type="button">开始评审</button>
+              <button class="btn primary" id="btn-run" type="button" disabled>开始评审</button>
               <button class="btn danger" id="btn-stop" type="button" hidden>停止</button>
               <button class="btn primary" id="btn-post" type="button">写回仓库</button>
             </div>
@@ -139,123 +154,123 @@
           </div>
         </header>
 
-        <div class="settings-grid">
+        <div class="settings-container">
           <section class="panel">
             <div class="panel-head">
-              <h2 class="panel-title">GitLab</h2>
-              <span class="muted">自建实例</span>
+              <h2 class="panel-title">服务连接</h2>
+              <span class="muted">GitLab 与 AI 模型</span>
             </div>
-            <label class="field">
-              <span class="field-label">GitLab 主机</span>
-              <input class="input" id="cfg-gitlab-host" placeholder="gitlab.example.com" autocomplete="off" spellcheck="false" />
-            </label>
-            <label class="field">
-              <span class="field-label">Access Token（api）</span>
-              <input class="input mono" id="cfg-gitlab-token" type="password" placeholder="glpat-…" autocomplete="off" spellcheck="false" />
-            </label>
-            <label class="field">
-              <span class="field-label">项目</span>
-              <div class="project-row">
-                <div class="combo" id="project-combo">
-                  <input
-                    class="input mono"
-                    id="cfg-gitlab-project"
-                    placeholder="输入名称筛选，或直接填 group/project"
-                    autocomplete="off"
-                    spellcheck="false"
-                    role="combobox"
-                    aria-expanded="false"
-                    aria-autocomplete="list"
-                    aria-controls="project-list"
-                  />
-                  <div class="combo-menu" id="project-list" role="listbox" hidden></div>
+
+            <div class="settings-section">
+              <div class="settings-subhead">
+                <span class="subhead-title">GitLab</span>
+                <span class="muted">自建或官方实例</span>
+              </div>
+              <div class="form-grid">
+                <label class="field">
+                  <span class="field-label">GitLab 主机</span>
+                  <input class="input" id="cfg-gitlab-host" placeholder="gitlab.example.com" autocomplete="off" spellcheck="false" />
+                </label>
+                <label class="field">
+                  <span class="field-label">Access Token（api）</span>
+                  <input class="input mono" id="cfg-gitlab-token" type="password" placeholder="glpat-…" autocomplete="off" spellcheck="false" />
+                </label>
+              </div>
+            </div>
+
+            <div class="panel-divider"></div>
+
+            <div class="settings-section">
+              <div class="settings-subhead">
+                <span class="subhead-title">AI 接口</span>
+                <span class="muted">OpenAI 兼容协议</span>
+              </div>
+              <label class="field">
+                <span class="field-label">Base URL</span>
+                <input class="input mono" id="cfg-ai-base" placeholder="https://ark.cn-beijing.volces.com/api/coding/v3" spellcheck="false" />
+              </label>
+              <div class="form-grid">
+                <label class="field">
+                  <span class="field-label">API Key</span>
+                  <input class="input mono" id="cfg-ai-key" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false" />
+                </label>
+                <label class="field">
+                  <span class="field-label">模型</span>
+                  <input class="input mono" id="cfg-ai-model" placeholder="ark-code-latest" spellcheck="false" />
+                </label>
+              </div>
+            </div>
+
+            <div class="panel-divider"></div>
+
+            <div class="service-test-grid">
+              <div class="test-item">
+                <button class="btn sm" id="btn-test-gitlab" type="button">测试 GitLab 连接</button>
+                <span class="status-msg" id="gitlab-test-msg" aria-live="polite"></span>
+              </div>
+              <div class="test-item">
+                <button class="btn sm" id="btn-test-ai" type="button">测试 AI 连接</button>
+                <span class="status-msg" id="ai-test-msg" aria-live="polite"></span>
+              </div>
+            </div>
+          </section>
+
+          <div class="settings-bottom-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <h2 class="panel-title">评审</h2>
+                <span class="muted">技能与输出</span>
+              </div>
+              <label class="field">
+                <span class="field-label">AI 评审技能</span>
+                <select class="input" id="cfg-skill" aria-label="AI 评审技能"></select>
+                <span class="field-hint" id="skill-desc">只支持一个额外目录；结构为 &lt;目录&gt;/&lt;skill-id&gt;/SKILL.md。</span>
+              </label>
+              <div class="setting-row skill-dir-row">
+                <div class="setting-text">
+                  <div class="setting-label">自定义技能目录</div>
+                  <div class="setting-desc" id="skill-dir-path" hidden></div>
                 </div>
-                <button class="btn" id="btn-load-projects" type="button">加载项目</button>
+                <div class="skill-tools">
+                  <button class="btn sm" id="btn-skill-dir" type="button">选择目录</button>
+                  <button class="btn sm ghost" id="btn-skill-dir-clear" type="button">清除</button>
+                </div>
               </div>
-              <span class="status-msg" id="projects-msg" aria-live="polite"></span>
-            </label>
-            <div class="row-actions">
-              <button class="btn" id="btn-test-gitlab" type="button">测试连接</button>
-              <span class="status-msg" id="gitlab-test-msg" aria-live="polite"></span>
-            </div>
-          </section>
+            </section>
 
-          <section class="panel">
-            <div class="panel-head">
-              <h2 class="panel-title">AI 接口</h2>
-              <span class="muted">OpenAI 兼容</span>
-            </div>
-            <label class="field">
-              <span class="field-label">Base URL</span>
-              <input class="input mono" id="cfg-ai-base" placeholder="https://ark.cn-beijing.volces.com/api/coding/v3" spellcheck="false" />
-            </label>
-            <label class="field">
-              <span class="field-label">API Key</span>
-              <input class="input mono" id="cfg-ai-key" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false" />
-            </label>
-            <label class="field">
-              <span class="field-label">模型</span>
-              <input class="input mono" id="cfg-ai-model" placeholder="ark-code-latest" spellcheck="false" />
-            </label>
-            <div class="row-actions">
-              <button class="btn" id="btn-test-ai" type="button">测试连接</button>
-              <span class="status-msg" id="ai-test-msg" aria-live="polite"></span>
-            </div>
-          </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h2 class="panel-title">外观</h2>
+                <span class="muted">界面配色</span>
+              </div>
+              <div class="field">
+                <span class="field-label">主题</span>
+                <div class="theme-seg" role="radiogroup" aria-label="主题">
+                  <label class="theme-opt">
+                    <input type="radio" name="ui-theme" value="system" id="theme-opt-system" />
+                    <span class="theme-dot system" aria-hidden="true"></span>
+                    <span>跟随系统</span>
+                  </label>
+                  <label class="theme-opt">
+                    <input type="radio" name="ui-theme" value="light" id="theme-opt-light" />
+                    <span class="theme-dot light" aria-hidden="true"></span>
+                    <span>浅色</span>
+                  </label>
+                  <label class="theme-opt">
+                    <input type="radio" name="ui-theme" value="dark" id="theme-opt-dark" />
+                    <span class="theme-dot dark" aria-hidden="true"></span>
+                    <span>深色</span>
+                  </label>
+                </div>
+                <p class="field-hint">点底部「保存」后生效。</p>
+              </div>
+            </section>
+          </div>
 
-          <section class="panel">
-            <div class="panel-head">
-              <h2 class="panel-title">评审</h2>
-              <span class="muted">技能与输出</span>
-            </div>
-            <label class="field">
-              <span class="field-label">AI 评审技能</span>
-              <select class="input" id="cfg-skill" aria-label="AI 评审技能"></select>
-              <span class="field-hint" id="skill-desc">只支持一个额外目录；结构为 &lt;目录&gt;/&lt;skill-id&gt;/SKILL.md。</span>
-            </label>
-            <div class="setting-row skill-dir-row">
-              <div class="setting-text">
-                <div class="setting-label">自定义技能目录</div>
-                <div class="setting-desc" id="skill-dir-path" hidden></div>
-              </div>
-              <div class="skill-tools">
-                <button class="btn sm" id="btn-skill-dir" type="button">选择目录</button>
-                <button class="btn sm ghost" id="btn-skill-dir-clear" type="button">清除</button>
-              </div>
-            </div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-head">
-              <h2 class="panel-title">外观</h2>
-              <span class="muted">界面配色</span>
-            </div>
-            <div class="field">
-              <span class="field-label">主题</span>
-              <div class="theme-seg" role="radiogroup" aria-label="主题">
-                <label class="theme-opt">
-                  <input type="radio" name="ui-theme" value="system" id="theme-opt-system" />
-                  <span class="theme-dot system" aria-hidden="true"></span>
-                  <span>跟随系统</span>
-                </label>
-                <label class="theme-opt">
-                  <input type="radio" name="ui-theme" value="light" id="theme-opt-light" />
-                  <span class="theme-dot light" aria-hidden="true"></span>
-                  <span>浅色</span>
-                </label>
-                <label class="theme-opt">
-                  <input type="radio" name="ui-theme" value="dark" id="theme-opt-dark" />
-                  <span class="theme-dot dark" aria-hidden="true"></span>
-                  <span>深色</span>
-                </label>
-              </div>
-              <p class="field-hint">点底部「保存」后生效。</p>
-            </div>
-          </section>
-        </div>
-        <div class="settings-footer">
-          <button class="btn" id="btn-reset" type="button">恢复默认</button>
-          <button class="btn primary" id="btn-save" type="button">保存</button>
+          <div class="settings-footer">
+            <button class="btn" id="btn-reset" type="button">恢复默认</button>
+            <button class="btn primary" id="btn-save" type="button">保存</button>
+          </div>
         </div>
       </section>
 

@@ -8,5 +8,3 @@ dist/
 *.log
 .env
 .env.local
-desktop/node_modules/
-desktop/release/

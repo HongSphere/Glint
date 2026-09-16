@@ -1,4 +1,4 @@
-/* Tauri bridge — keeps the same window.api surface as the Electron preload. */
+/* Tauri bridge — provides desktop native IPC for window.api */
 (function () {
   function invoke(cmd, args) {
     if (!window.__TAURI__ || !window.__TAURI__.core || !window.__TAURI__.core.invoke) {

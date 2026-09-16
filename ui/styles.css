@@ -284,25 +284,93 @@ button, input, select { font: inherit; color: inherit; }
   color: var(--muted);
   font-size: 13px;
 }
-.header-actions { display: flex; gap: 8px; align-items: center; }
-.inline-field {
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.header-project-row {
+  width: 480px;
+  max-width: 55vw;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.header-project-row .combo {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.header-project-row .input {
+  padding-right: 32px;
+}
+
+.project-clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-elev-2);
+  color: var(--muted);
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.12s ease, background 0.12s ease;
+  z-index: 2;
 }
-.inline-label {
+
+.project-clear-btn:hover {
+  color: var(--text);
+  background: var(--border-strong);
+}
+
+.project-clear-btn[hidden] {
+  display: none !important;
+}
+
+.project-refresh-btn {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
   color: var(--muted);
-  font-size: 12px;
-  white-space: nowrap;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
 }
-.inline-field .select-narrow,
-.inline-field .cselect {
-  min-width: 200px;
-  max-width: 280px;
+
+.project-refresh-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+  background: var(--bg-elev-2);
 }
-.inline-field .cselect-btn {
-  min-width: 200px;
-  max-width: 280px;
+
+.project-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.project-refresh-btn.loading svg {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* ---------- controls ---------- */
@@ -770,57 +838,103 @@ select.input.select-narrow {
   line-height: 1.55;
 }
 
-/* ---------- settings: 2x2 equal cards ---------- */
-.settings-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(280px, 1fr));
-  gap: 12px;
-  align-items: stretch;
-  max-width: 1040px;
-}
-.settings-footer {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin: 16px auto 0;
-  max-width: 1040px;
-}
-.settings-footer .btn {
-  min-width: 112px;
-  padding: 8px 16px;
-}
-.settings-grid .panel {
-  min-width: 0;
-  height: 100%;
+/* ---------- settings: unified & balanced layout ---------- */
+.settings-container {
   display: flex;
   flex-direction: column;
-  padding: 14px 16px 14px;
+  gap: 14px;
+  max-width: 920px;
 }
-.settings-grid .form-grid {
+.settings-container .panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px;
+}
+.settings-section {
+  display: flex;
+  flex-direction: column;
+}
+.settings-subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.settings-subhead .subhead-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+.panel-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 16px 0 14px;
+  border: 0;
+}
+.settings-container .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
-.settings-grid .field { margin-bottom: 12px; }
-.settings-grid .field:last-child { margin-bottom: 0; }
-.settings-grid .field .field-label {
+.settings-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+.settings-bottom-grid .panel {
+  height: 100%;
+}
+.settings-container .field {
+  margin-bottom: 12px;
+}
+.settings-container .field:last-child {
+  margin-bottom: 0;
+}
+.settings-container .field .field-label {
   margin-bottom: 5px;
 }
-.settings-grid .field-hint {
-  margin-top: 5px;
-  font-size: 12px;
-}
-.settings-grid .row-actions {
-  margin-top: auto;
-  padding-top: 14px;
+.settings-container .row-actions {
+  margin-top: 12px;
+  padding-top: 0;
   border-top: 0;
   min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.settings-grid .path-hint {
+.service-test-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: center;
+  min-height: 34px;
+}
+.test-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.test-item .btn {
+  flex-shrink: 0;
+  text-align: center;
+}
+.test-item .status-msg {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.settings-container .path-hint {
   margin-top: 5px;
   margin-bottom: 0;
 }
-.settings-grid .field .path-hint {
+.settings-container .field .path-hint {
   display: block;
 }
 .field.span-2 { grid-column: 1 / -1; }
@@ -833,13 +947,24 @@ select.input.select-narrow {
 }
 .field input.input,
 .field select.input { margin-top: 0; }
-.settings-grid .field .cselect {
+.settings-container .field .cselect {
   display: block;
   width: 100%;
   min-width: 0;
   max-width: none;
 }
-.settings-grid .cselect-btn { width: 100%; }
+.settings-container .cselect-btn { width: 100%; }
+.settings-footer {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 6px;
+  padding-bottom: 24px;
+}
+.settings-footer .btn {
+  min-width: 112px;
+  padding: 8px 16px;
+}
 
 .btn.sm {
   padding: 6px 10px;
