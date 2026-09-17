@@ -916,23 +916,44 @@ async function testAI() {
   }
 }
 
+const ICON_UPDATE_CHECK = `
+  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+    <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M13.5 2.5v3.2h-3.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+
+const ICON_UPDATE_INSTALL = `
+  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+    <path d="M8 2.5v8M5 7.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M3 13.5h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`;
+
 function applyUpdateState(s) {
   if (!s) return;
   const msg = $('update-msg');
-  if (!msg) return;
+  const chip = $('update-chip');
+  if (!msg || !chip) return;
   msg.classList.remove('ok', 'err', 'ready');
+  chip.classList.remove('ready');
+
   if (s.downloaded) {
-    msg.textContent = `有更新 ${s.version || ''} · 点击安装`;
+    chip.classList.add('ready');
+    chip.innerHTML = `${ICON_UPDATE_INSTALL}<span>立即安装</span>`;
+    msg.textContent = '新版本已就绪';
     msg.classList.add('ready');
   } else if (s.error) {
+    chip.innerHTML = `${ICON_UPDATE_CHECK}<span>检查更新</span>`;
     msg.textContent = s.message || '检查更新失败';
     msg.classList.add('err');
   } else if (s.checking) {
-    msg.textContent = '检查中…';
+    chip.innerHTML = `${ICON_UPDATE_CHECK}<span>检查中…</span>`;
+    msg.textContent = '正在检查更新…';
   } else if (s.message === '已是最新版本') {
+    chip.innerHTML = `${ICON_UPDATE_CHECK}<span>检查更新</span>`;
     msg.textContent = '已是最新版本';
     msg.classList.add('ok');
   } else {
+    chip.innerHTML = `${ICON_UPDATE_CHECK}<span>检查更新</span>`;
     msg.textContent = s.message || '';
   }
 }
@@ -1020,14 +1041,16 @@ function bindEvents() {
       toast('已清除自定义目录', 'ok');
     });
   }
-  $('update-chip').addEventListener('click', async () => {
+  const onUpdateTrigger = async () => {
     const s = await window.api.updateState();
     if (s?.downloaded) {
       window.api.installUpdate();
       return;
     }
     window.api.checkUpdate(true);
-  });
+  };
+  $('update-chip')?.addEventListener('click', onUpdateTrigger);
+  $('update-msg')?.addEventListener('click', onUpdateTrigger);
 
   window.api.onReviewProgress((p) => {
     setProgress(true, p.message || p.step);

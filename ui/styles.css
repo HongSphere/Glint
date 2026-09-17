@@ -236,7 +236,15 @@ button, input, select { font: inherit; color: inherit; }
 }
 .upd-msg.ok { color: var(--ok); }
 .upd-msg.err { color: var(--danger); }
-.upd-msg.ready { color: var(--accent-2); }
+.upd-msg.ready {
+  color: var(--accent-2);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.upd-msg.ready:hover {
+  opacity: 0.85;
+  text-decoration: underline;
+}
 
 /* ---------- main shell ---------- */
 .main {
