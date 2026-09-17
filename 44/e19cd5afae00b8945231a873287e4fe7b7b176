@@ -1,0 +1,38 @@
+README.md
+  h_b8a5bec9fccfca 12,64-66
+package-lock.json
+  h_b8a5bec9fccfca 3-4,6-7,12,26,31,33,38,40,45,47,52,54,59,61,66,68,73,75,80,82,87,89,94,96,101
+package.json
+  h_b8a5bec9fccfca 3
+src-tauri/Cargo.lock
+  h_b8a5bec9fccfca 1479
+src-tauri/Cargo.toml
+  h_b8a5bec9fccfca 3-4
+src-tauri/skills/gitlab-mr-review/SKILL.md
+  h_b8a5bec9fccfca 3,6-23,25-69,71
+src-tauri/skills/gitlab-mr-review/references/glab-commands.md
+  h_b8a5bec9fccfca 1-80
+src-tauri/skills/gitlab-mr-review/references/review-guidance.md
+  h_b8a5bec9fccfca 1-51
+src-tauri/skills/gitlab-mr-review/scripts/fetch_mr.sh
+  h_b8a5bec9fccfca 1-23
+src-tauri/src/review.rs
+  h_b8a5bec9fccfca 203-218,275-283,297,307-319,323,325-326
+src-tauri/src/skills.rs
+  h_b8a5bec9fccfca 32-62,66,69-75,91-98,103-118,126-127,133-140,142-168,183,185-192,197,204-205,212,224,235,240-243,280-282,285,354-407
+src-tauri/tauri.conf.json
+  h_b8a5bec9fccfca 4,37-39
+ui/app.js
+  h_b8a5bec9fccfca 67-69,718-724,731,839
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "44e19cd5afae00b8945231a873287e4fe7b7b176",
+  "prompts": {},
+  "humans": {
+    "h_b8a5bec9fccfca": {
+      "author": "zhanghong <zhanghong@meibaokeji.com>"
+    }
+  }
+}
