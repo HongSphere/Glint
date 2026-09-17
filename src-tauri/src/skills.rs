@@ -29,13 +29,50 @@ fn parse_frontmatter(raw: &str) -> (Value, String) {
     (Value::Object(meta), body)
 }
 
+const DEFAULT_SKILL_GITLAB_MR: &str = include_str!("../skills/gitlab-mr-review/SKILL.md");
+const DEFAULT_SKILL_GUIDANCE: &str = include_str!("../skills/gitlab-mr-review/references/review-guidance.md");
+
+fn embedded_builtin_skills() -> Vec<Value> {
+    let mut out = Vec::new();
+    let (meta, mut body) = parse_frontmatter(DEFAULT_SKILL_GITLAB_MR);
+    if !DEFAULT_SKILL_GUIDANCE.is_empty() {
+        body.push_str("\n\n## 技能参考资料 (References)\n\n### 参考文档: review-guidance.md\n\n");
+        body.push_str(DEFAULT_SKILL_GUIDANCE);
+    }
+    let id = meta
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("gitlab-mr-review")
+        .to_string();
+    let title = body
+        .lines()
+        .find(|l| l.starts_with("# "))
+        .map(|l| l[2..].trim().to_string())
+        .unwrap_or_else(|| "GitLab MR Review".to_string());
+    out.push(json!({
+        "id": id,
+        "name": title,
+        "description": meta.get("description").cloned().unwrap_or(json!("GitLab Merge Request AI 代码评审。对 MR diff 做正确性、安全、可维护性与性能审查，输出结构化 JSON。")),
+        "path": "builtin://gitlab-mr-review",
+        "body": body,
+        "builtin": true,
+    }));
+    out
+}
+
 fn builtin_skills_dir() -> Option<PathBuf> {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(parent) = exe.parent() {
-            for c in [
+            let mut cands = vec![
                 parent.join("resources").join("skills"),
                 parent.join("skills"),
-            ] {
+            ];
+            // macOS App Bundle: Glint.app/Contents/MacOS/glint -> parent.parent() is Glint.app/Contents
+            if let Some(contents) = parent.parent() {
+                cands.push(contents.join("Resources").join("skills"));
+                cands.push(contents.join("resources").join("skills"));
+            }
+            for c in cands {
                 if c.is_dir() {
                     return Some(c);
                 }
@@ -51,16 +88,34 @@ fn builtin_skills_dir() -> Option<PathBuf> {
 }
 
 fn collect_skill_files(root: &Path, depth: usize, out: &mut Vec<PathBuf>) {
+    if root.is_file() {
+        let name = root.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        let lower = name.to_lowercase();
+        if lower.ends_with(".md") || lower == "skill" || lower.contains("review") {
+            out.push(root.to_path_buf());
+        }
+        return;
+    }
     if depth == 0 {
         return;
     }
     let Ok(rd) = fs::read_dir(root) else { return };
-    for entry in rd.flatten() {
-        let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
-        if path.is_file() && name == "SKILL.md" {
-            out.push(path);
-        } else if path.is_dir() && !name.starts_with('.') && name != "node_modules" {
+    let mut entries: Vec<PathBuf> = rd.flatten().map(|e| e.path()).collect();
+    entries.sort();
+    for path in entries {
+        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let lower = name.to_lowercase();
+        if path.is_file() {
+            if lower == "skill.md" || lower.ends_with(".skill.md") || (lower.ends_with(".md") && lower != "readme.md") {
+                out.push(path);
+            }
+        } else if path.is_dir()
+            && !name.starts_with('.')
+            && name != "node_modules"
+            && name != "references"
+            && name != "scripts"
+            && name != "assets"
+        {
             collect_skill_files(&path, depth - 1, out);
         }
     }
@@ -68,17 +123,49 @@ fn collect_skill_files(root: &Path, depth: usize, out: &mut Vec<PathBuf>) {
 
 fn load_skill_file(path: &Path) -> Option<Value> {
     let raw = fs::read_to_string(path).ok()?;
-    let (meta, body) = parse_frontmatter(&raw);
+    let (meta, mut body) = parse_frontmatter(&raw);
+    let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
     let id = meta
         .get("name")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
         .unwrap_or_else(|| {
-            path.parent()
-                .and_then(|p| p.file_name())
-                .map(|s| s.to_string_lossy().to_string())
-                .unwrap_or_else(|| "skill".into())
+            if stem.to_lowercase() == "skill" {
+                path.parent()
+                    .and_then(|p| p.file_name())
+                    .map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "skill".into())
+            } else {
+                stem.clone()
+            }
         });
+
+    // Auto-attach companion references (e.g. references/review-guidance.md) if present
+    if let Some(parent) = path.parent() {
+        let ref_dir = parent.join("references");
+        if ref_dir.is_dir() {
+            if let Ok(rd) = fs::read_dir(ref_dir) {
+                let mut ref_paths: Vec<PathBuf> = rd.flatten().map(|e| e.path()).collect();
+                ref_paths.sort();
+                let mut ref_blocks = Vec::new();
+                for p in ref_paths {
+                    if p.is_file() && p.extension().map(|e| e == "md").unwrap_or(false) {
+                        let fname = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+                        if let Ok(content) = fs::read_to_string(&p) {
+                            if !content.trim().is_empty() {
+                                ref_blocks.push(format!("### 参考文档: {fname}\n\n{content}"));
+                            }
+                        }
+                    }
+                }
+                if !ref_blocks.is_empty() {
+                    body.push_str("\n\n## 技能参考资料 (References)\n\n");
+                    body.push_str(&ref_blocks.join("\n\n---\n\n"));
+                }
+            }
+        }
+    }
+
     let title = body
         .lines()
         .find(|l| l.starts_with("# "))
@@ -93,29 +180,37 @@ fn load_skill_file(path: &Path) -> Option<Value> {
     }))
 }
 
-fn list_skills() -> Result<Value, String> {
+pub fn list_skills() -> Result<Value, String> {
     let mut final_map = std::collections::BTreeMap::new();
+
+    // 1. Embedded fallback/default skills (always available across all platforms)
+    for sk in embedded_builtin_skills() {
+        let id = sk["id"].as_str().unwrap_or("").to_string();
+        final_map.insert(id, sk);
+    }
+
+    // 2. Extra built-in skills on disk if present
     if let Some(b) = builtin_skills_dir() {
         let mut files = vec![];
         collect_skill_files(&b, 2, &mut files);
         for f in files {
-            if let Some(sk) = load_skill_file(&f) {
+            if let Some(mut sk) = load_skill_file(&f) {
                 let id = sk["id"].as_str().unwrap_or("").to_string();
-                let mut sk = sk;
                 sk["builtin"] = Value::Bool(true);
                 final_map.insert(id, sk);
             }
         }
     }
+
+    // 3. User custom skillDir overrides or additions
     let cfg = config::get_config().unwrap_or(json!({}));
     if let Some(dir) = cfg["review"]["skillDir"].as_str() {
         if !dir.is_empty() {
             let mut files = vec![];
             collect_skill_files(Path::new(dir), 2, &mut files);
             for f in files {
-                if let Some(sk) = load_skill_file(&f) {
+                if let Some(mut sk) = load_skill_file(&f) {
                     let id = sk["id"].as_str().unwrap_or("").to_string();
-                    let mut sk = sk;
                     sk["builtin"] = Value::Bool(false);
                     final_map.insert(id, sk);
                 }
@@ -126,7 +221,7 @@ fn list_skills() -> Result<Value, String> {
     Ok(json!(list))
 }
 
-fn resolve_skill(id: &str) -> Option<Value> {
+pub fn resolve_skill(id: &str) -> Option<Value> {
     if id == "none" || id.is_empty() {
         return None;
     }
@@ -137,13 +232,15 @@ fn resolve_skill(id: &str) -> Option<Value> {
         .cloned()
 }
 
-fn skill_prompt_block(id: &str) -> String {
+pub fn skill_prompt_block(id: &str) -> String {
     let Some(sk) = resolve_skill(id) else {
         return String::new();
     };
     let mut body = sk["body"].as_str().unwrap_or("").to_string();
-    if body.len() > 12000 {
-        body = format!("{}\n…（技能内容已截断）", &body[..12000]);
+    let max_chars = 12000;
+    if body.chars().count() > max_chars {
+        let truncated: String = body.chars().take(max_chars).collect();
+        body = format!("{truncated}\n…（技能内容已截断）");
     }
     let name = sk["name"].as_str().unwrap_or("");
     format!(
@@ -180,9 +277,12 @@ pub fn system_prompt(skill_id: &str) -> String {
 - 没有问题就返回空 issues，verdict=approve
 - 不要输出无关闲聊
 "#;
+    if skill_id == "none" || skill_id.is_empty() {
+        return format!("{base}\n当前技能模式：通用评审（未挂载特定技能）\n");
+    }
     let block = skill_prompt_block(skill_id);
     if block.is_empty() {
-        format!("{base}\n当前技能：未加载（使用通用评审默认）\n")
+        format!("{base}\n当前技能模式：{skill_id}（技能定义未找到，回退通用评审）\n")
     } else {
         format!("{base}\n当前技能：{skill_id}\n\n{block}\n")
     }
@@ -251,3 +351,57 @@ pub async fn pick_file(app: AppHandle) -> Result<Value, String> {
 }
 
 // unused re-exports removed; commands call functions directly
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_embedded_skill_always_available() {
+        let skills = list_skills().expect("list_skills should succeed");
+        let arr = skills.as_array().expect("skills should be an array");
+        assert!(!arr.is_empty(), "skills array should never be empty");
+        let default_skill = arr.iter().find(|s| s["id"] == "gitlab-mr-review");
+        assert!(default_skill.is_some(), "gitlab-mr-review must be present");
+        let sk = default_skill.unwrap();
+        assert_eq!(sk["builtin"], true);
+        let body = sk["body"].as_str().unwrap_or("");
+        assert!(!body.is_empty());
+        assert!(body.contains("review-guidance.md"), "skill body must include review-guidance reference");
+        assert!(body.contains("高"), "skill body must include severity guidance");
+
+        let prompt = system_prompt("gitlab-mr-review");
+        assert!(prompt.contains("GitLab Merge Request 评审"));
+        assert!(prompt.contains("<skill id=\"gitlab-mr-review\""));
+        assert!(prompt.contains("review-guidance.md"));
+    }
+
+    #[test]
+    fn test_custom_skill_package_with_references() {
+        let temp_dir = std::env::temp_dir().join(format!("glint_skill_test_{}", std::process::id()));
+        let skill_dir = temp_dir.join("my-awesome-skill");
+        let ref_dir = skill_dir.join("references");
+        let script_dir = skill_dir.join("scripts");
+        fs::create_dir_all(&ref_dir).unwrap();
+        fs::create_dir_all(&script_dir).unwrap();
+
+        fs::write(skill_dir.join("SKILL.md"), "---\nname: my-awesome-skill\ndescription: Custom test skill\n---\n# My Awesome Skill\nCore skill body").unwrap();
+        fs::write(ref_dir.join("security-rules.md"), "# Security Rules\nCheck for SQL injection").unwrap();
+        fs::write(script_dir.join("helper.sh"), "#!/bin/bash\necho helper").unwrap();
+
+        let mut collected = Vec::new();
+        collect_skill_files(&temp_dir, 2, &mut collected);
+        // Only SKILL.md should be collected, not security-rules.md or helper.sh
+        assert_eq!(collected.len(), 1, "Only SKILL.md should be collected as skill entry");
+
+        let loaded = load_skill_file(&collected[0]).expect("load_skill_file should succeed");
+        assert_eq!(loaded["id"], "my-awesome-skill");
+        let body = loaded["body"].as_str().unwrap_or("");
+        assert!(body.contains("Core skill body"));
+        assert!(body.contains("## 技能参考资料 (References)"));
+        assert!(body.contains("security-rules.md"));
+        assert!(body.contains("Check for SQL injection"));
+
+        let _ = fs::remove_dir_all(temp_dir);
+    }
+}

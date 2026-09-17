@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-v0.1.0-blue.svg?style=flat-square" alt="Release" />
+  <img src="https://img.shields.io/badge/Release-v0.1.1-blue.svg?style=flat-square" alt="Release" />
   <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-brightgreen.svg?style=flat-square" alt="Platform" />
   <img src="https://img.shields.io/badge/Framework-Tauri%202%20%2B%20Rust-orange.svg?style=flat-square" alt="Tauri 2" />
   <img src="https://img.shields.io/badge/Frontend-Vanilla%20JS%20(Zero%20Dependency)-yellow.svg?style=flat-square" alt="Frontend" />
@@ -61,9 +61,9 @@
 
 | 操作系统 | 架构 | 文件类型 | 文件名 | 说明 |
 | :--- | :--- | :--- | :--- | :--- |
-| **macOS** | Apple Silicon (M1/M2/M3/M4) | DMG 镜像 | `Glint_0.1.0_aarch64.dmg` | 推荐，双击打开后拖入 Applications |
-| **macOS** | Apple Silicon (M1/M2/M3/M4) | ZIP 免安装 | `Glint_0.1.0_aarch64_mac.zip` | 解压后直接运行 `Glint.app` |
-| **Windows** | x64 (64-bit) | NSIS 一键安装包 | `Glint_0.1.0_x64-setup.exe` | 运行安装向导快速安装 |
+| **macOS** | Apple Silicon (M1/M2/M3/M4) | DMG 镜像 | `Glint_0.1.1_aarch64.dmg` | 推荐，双击打开后拖入 Applications |
+| **macOS** | Apple Silicon (M1/M2/M3/M4) | ZIP 免安装 | `Glint_0.1.1_aarch64_mac.zip` | 解压后直接运行 `Glint.app` |
+| **Windows** | x64 (64-bit) | NSIS 一键安装包 | `Glint_0.1.1_x64-setup.exe` | 运行安装向导快速安装 |
 
 > 💡 **提示**：macOS Intel (x86_64) 或 Linux 用户可拉取源码自行构建（参见下文 [本地开发与构建](#-本地开发与构建)）。
 

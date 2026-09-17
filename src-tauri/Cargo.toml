@@ -1,7 +1,7 @@
 [package]
 name = "glint"
-version = "0.1.0"
-description = "Glint — GitLab MR AI Review"
+version = "0.1.1"
+description = "GitLab Merge Request AI Reviewer"
 authors = ["HongSphere"]
 edition = "2021"
 

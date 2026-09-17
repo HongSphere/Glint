@@ -64,7 +64,9 @@ async function loadSkills() {
       opt.textContent = label;
       sel.appendChild(opt);
     }
-    if (current === 'file' || !skills.some((s) => s.id === current)) {
+    if (current === 'none') {
+      sel.value = 'none';
+    } else if (current === 'file' || !skills.some((s) => s.id === current)) {
       sel.value = skills.some((s) => s.id === 'gitlab-mr-review')
         ? 'gitlab-mr-review'
         : 'none';
@@ -713,13 +715,20 @@ function renderReview(result) {
     ? `<ul class="positives">${positives.map((p) => `<li>${escapeHtml(p)}</li>`).join('')}</ul>`
     : '';
 
+  const skillText =
+    result.skillId === 'none'
+      ? '通用评审'
+      : result.skillId
+        ? `${result.skillName || result.skillId}${result.skillBuiltin ? '（内置）' : '（自定义）'}`
+        : 'gitlab-mr-review（内置）';
+
   body.innerHTML = `
     <div class="review-summary">
       <h2>
         AI 评审
         <span class="verdict ${escapeHtml(r.verdict)}">${escapeHtml(r.verdict)}</span>
       </h2>
-      <div class="score-line">评分 ${escapeHtml(r.score)}/10 · 问题 ${issues.length}</div>
+      <div class="score-line">评分 ${escapeHtml(r.score)}/10 · 问题 ${issues.length} · 技能：${escapeHtml(skillText)}</div>
       <p>${escapeHtml(r.summary || '')}</p>
       ${posHtml}
       ${issueHtml}
@@ -827,6 +836,7 @@ async function postReview(opts = {}) {
     const res = await window.api.postReview({
       iid: state.lastReview.mr.iid,
       review: state.lastReview.review,
+      skillId: state.lastReview?.skillId || 'gitlab-mr-review',
       skipInline: noInline,
     });
     if (!opts.silent) {

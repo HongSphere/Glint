@@ -1476,7 +1476,7 @@ dependencies = [
 
 [[package]]
 name = "glint"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dirs 5.0.1",
  "once_cell",

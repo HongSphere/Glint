@@ -1,8 +1,6 @@
 use crate::config;
 use once_cell::sync::Lazy;
 use serde_json::{json, Value};
-use std::fs;
-use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter};
 
@@ -48,208 +46,6 @@ fn skip_path(path: &str) -> bool {
         ".ttf", ".eot", ".mp4", ".mp3", ".wav",
     ];
     exts.iter().any(|e| lower.ends_with(e))
-}
-
-fn parse_frontmatter(raw: &str) -> (Value, String) {
-    let text = raw.trim_start_matches('\u{feff}');
-    if !text.starts_with("---") {
-        return (json!({}), text.to_string());
-    }
-    let end = match text.find("\n---") {
-        Some(i) => i,
-        None => return (json!({}), text.to_string()),
-    };
-    let fm = text[3..end].trim();
-    let body = text[end + 4..].trim_start_matches('\n').to_string();
-    let mut meta = serde_json::Map::new();
-    for line in fm.lines() {
-        if let Some((k, v)) = line.split_once(':') {
-            let k = k.trim().to_string();
-            let mut v = v.trim().to_string();
-            if (v.starts_with('"') && v.ends_with('"')) || (v.starts_with('\'') && v.ends_with('\'')) {
-                v = v[1..v.len() - 1].to_string();
-            }
-            meta.insert(k.to_lowercase(), Value::String(v));
-        }
-    }
-    (Value::Object(meta), body)
-}
-
-fn builtin_skills_dir() -> Option<PathBuf> {
-    // resource dir next to exe, or src-tauri/skills in dev
-    if let Ok(d) = std::env::current_exe() {
-        let cands = [
-            d.parent().map(|p| p.join("resources").join("skills")).unwrap_or_default(),
-            d.parent().map(|p| p.join("skills")).unwrap_or_default(),
-        ];
-        for c in cands {
-            if c.is_dir() {
-                return Some(c);
-            }
-        }
-    }
-    let dev = Path::new(env!("CARGO_MANIFEST_DIR")).join("skills");
-    if dev.is_dir() {
-        return Some(dev);
-    }
-    None
-}
-
-fn collect_skill_files(root: &Path, depth: usize, out: &mut Vec<PathBuf>) {
-    if depth == 0 {
-        return;
-    }
-    let Ok(rd) = fs::read_dir(root) else { return };
-    for entry in rd.flatten() {
-        let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
-        if path.is_file() && name == "SKILL.md" {
-            out.push(path);
-        } else if path.is_dir() && !name.starts_with('.') && name != "node_modules" {
-            collect_skill_files(&path, depth - 1, out);
-        }
-    }
-}
-
-fn load_skill_file(path: &Path) -> Option<Value> {
-    let raw = fs::read_to_string(path).ok()?;
-    let (meta, body) = parse_frontmatter(&raw);
-    let id = meta
-        .get("name")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| {
-            path.parent()
-                .and_then(|p| p.file_name())
-                .map(|s| s.to_string_lossy().to_string())
-                .unwrap_or_else(|| "skill".into())
-        });
-    let title = body
-        .lines()
-        .find(|l| l.starts_with("# "))
-        .map(|l| l[2..].trim().to_string())
-        .unwrap_or_else(|| id.clone());
-    Some(json!({
-        "id": id,
-        "name": title,
-        "description": meta.get("description").cloned().unwrap_or(json!("")),
-        "path": path.to_string_lossy(),
-        "body": body,
-    }))
-}
-
-fn list_skills() -> Result<Value, String> {
-    let mut by_id = std::collections::BTreeMap::new();
-    let mut roots: Vec<PathBuf> = Vec::new();
-    if let Some(b) = builtin_skills_dir() {
-        roots.push(b);
-    }
-    let cfg = config::get_config().unwrap_or(json!({}));
-    if let Some(dir) = cfg["review"]["skillDir"].as_str() {
-        if !dir.is_empty() {
-            let p = PathBuf::from(dir);
-            if p.is_dir() {
-                roots.push(p);
-            }
-        }
-    }
-    // user overrides builtin
-    let mut ordered = roots;
-    // actually collect builtin first then user later overwrites via insert only if not present - user last
-    let mut final_map = std::collections::BTreeMap::new();
-    if let Some(b) = builtin_skills_dir() {
-        let mut files = vec![];
-        collect_skill_files(&b, 2, &mut files);
-        for f in files {
-            if let Some(sk) = load_skill_file(&f) {
-                let id = sk["id"].as_str().unwrap_or("").to_string();
-                let mut sk = sk;
-                sk["builtin"] = Value::Bool(true);
-                final_map.insert(id, sk);
-            }
-        }
-    }
-    if let Some(dir) = cfg["review"]["skillDir"].as_str() {
-        if !dir.is_empty() {
-            let mut files = vec![];
-            collect_skill_files(Path::new(dir), 2, &mut files);
-            for f in files {
-                if let Some(sk) = load_skill_file(&f) {
-                    let id = sk["id"].as_str().unwrap_or("").to_string();
-                    let mut sk = sk;
-                    sk["builtin"] = Value::Bool(false);
-                    final_map.insert(id, sk);
-                }
-            }
-        }
-    }
-    by_id = final_map;
-    let list: Vec<Value> = by_id.into_values().collect();
-    Ok(json!(list))
-}
-
-fn resolve_skill(id: &str) -> Option<Value> {
-    if id == "none" || id.is_empty() {
-        return None;
-    }
-    let list = list_skills().ok()?;
-    list.as_array()?
-        .iter()
-        .find(|s| s["id"].as_str() == Some(id))
-        .cloned()
-}
-
-fn skill_prompt_block(id: &str) -> String {
-    let Some(sk) = resolve_skill(id) else {
-        return String::new();
-    };
-    let body = sk["body"].as_str().unwrap_or("").to_string();
-    let body = if body.len() > 12000 {
-        format!("{}\n…（技能内容已截断）", &body[..12000])
-    } else {
-        body
-    };
-    let name = sk["name"].as_str().unwrap_or("");
-    format!(
-        "以下是评审技能「{id}」（{name}）的说明。请把它当作本次评审的领域侧重之一（正确性与安全优先）：\n\n<skill id=\"{id}\" name=\"{name}\">\n{body}\n</skill>"
-    )
-}
-
-fn system_prompt(skill_id: &str) -> String {
-    let base = r#"你是资深代码评审员，负责 GitLab Merge Request 评审。
-只基于给出的 diff 与上下文判断，不要臆造文件外事实。
-
-输出必须是严格 JSON（不要 markdown 代码块外的任何文字）：
-{
-  "summary": "2-5 句总体评价，中文",
-  "verdict": "approve | comment | request_changes",
-  "score": 0-10,
-  "positives": ["做得好的点"],
-  "issues": [
-    {
-      "severity": "high|medium|low",
-      "file": "相对路径",
-      "line": 123,
-      "side": "new|old",
-      "title": "一句话标题",
-      "body": "问题说明 + 可执行修改建议，中文"
-    }
-  ]
-}
-
-约束：
-- 如实报告发现的问题，不要遗漏重要问题；纯风格吹毛求疵可忽略
-- line 必须是 diff 中实际出现的行号；不确定就放进 summary，不要乱挂行
-- side: 表示新增行用 new，删除/旧文件行用 old
-- 没有问题就返回空 issues，verdict=approve
-- 不要输出无关闲聊
-"#;
-    let block = skill_prompt_block(skill_id);
-    if block.is_empty() {
-        format!("{base}\n当前技能：未加载（使用通用评审默认）\n")
-    } else {
-        format!("{base}\n当前技能：{skill_id}\n\n{block}\n")
-    }
 }
 
 fn parse_review_json(text: &str) -> Result<Value, String> {
@@ -404,8 +200,22 @@ async fn run_review_inner(app: &AppHandle, iid: u64) -> Result<Value, String> {
         return Err("请求已取消".into());
     }
     let (skill_id, _) = config::review_opts();
-    emit(app, "ai", &format!("调用模型评审 {used} 个文件…"));
-    let system = system_prompt(&skill_id);
+    let skill_obj = crate::skills::resolve_skill(&skill_id);
+    let skill_builtin = skill_obj.as_ref().and_then(|s| s["builtin"].as_bool()).unwrap_or(false);
+    let skill_name = skill_obj
+        .as_ref()
+        .and_then(|s| s["name"].as_str())
+        .unwrap_or(&skill_id)
+        .to_string();
+    let skill_label = if skill_id == "none" || skill_id.is_empty() {
+        "通用评审".to_string()
+    } else if skill_builtin {
+        format!("{skill_id}（内置）")
+    } else {
+        format!("{skill_id}（自定义）")
+    };
+    emit(app, "ai", &format!("调用模型评审 {used} 个文件（技能: {skill_label}）…"));
+    let system = crate::skills::system_prompt(&skill_id);
     let user = format!(
         "请评审以下 Merge Request。\n\n## MR 元信息\n- 标题: {}\n- 分支: {} → {}\n- 链接: {}\n\n## MR 描述\n{}\n\n## Diff\n{}\n\n请输出严格 JSON。",
         mr["title"].as_str().unwrap_or(""),
@@ -462,7 +272,15 @@ async fn run_review_inner(app: &AppHandle, iid: u64) -> Result<Value, String> {
     }
     let review = parse_review_json(&content)?;
     emit(app, "done", "评审完成");
-    Ok(json!({"ok": true, "empty": false, "mr": mr, "review": review}))
+    Ok(json!({
+        "ok": true,
+        "empty": false,
+        "mr": mr,
+        "review": review,
+        "skillId": skill_id,
+        "skillName": skill_name,
+        "skillBuiltin": skill_builtin,
+    }))
 }
 
 fn emit(app: &AppHandle, step: &str, message: &str) {
@@ -476,6 +294,7 @@ pub async fn post_review(payload: Value) -> Result<Value, String> {
     let iid = payload["iid"].as_u64().unwrap_or(0);
     let review = payload.get("review").cloned().unwrap_or(json!({}));
     let skip_inline = payload["skipInline"].as_bool().unwrap_or(false);
+    let skill_id = payload["skillId"].as_str().unwrap_or("gitlab-mr-review");
     if iid == 0 {
         return Err("缺少 MR 编号".into());
     }
@@ -485,12 +304,26 @@ pub async fn post_review(payload: Value) -> Result<Value, String> {
         return Err(format!("仅支持写回打开中的 MR（当前状态: {state}）"));
     }
 
+    let skill_desc = if skill_id == "none" || skill_id.is_empty() {
+        "通用基础评审".to_string()
+    } else {
+        let skill_obj = crate::skills::resolve_skill(skill_id);
+        let name = skill_obj.as_ref().and_then(|s| s["name"].as_str()).unwrap_or(skill_id);
+        let builtin = skill_obj.as_ref().and_then(|s| s["builtin"].as_bool()).unwrap_or(false);
+        if builtin {
+            format!("{name} ({skill_id} · 内置)")
+        } else {
+            format!("{name} ({skill_id} · 自定义)")
+        }
+    };
+
     let mut lines = vec![
         MARKER.to_string(),
         format!(
-            "## AI Code Review · {} · {}/10",
+            "## AI Code Review · {} · {}/10\n> 评审标准：{}",
             review["verdict"].as_str().unwrap_or("comment"),
-            review["score"].as_i64().unwrap_or(5)
+            review["score"].as_i64().unwrap_or(5),
+            skill_desc
         ),
         String::new(),
         review["summary"].as_str().unwrap_or("").to_string(),

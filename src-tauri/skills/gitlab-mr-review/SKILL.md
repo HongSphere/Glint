@@ -1,50 +1,71 @@
 ---
 name: gitlab-mr-review
-description: GitLab Merge Request AI 代码评审。对 MR diff 做正确性、安全、可维护性与性能审查，输出结构化 JSON。
+description: 用 glab 对 GitLab MR 进行代码评审并回写意见。当用户要求"评审/审查某个 GitLab MR"、"看下这个 Merge Request"、"把评审意见发到 GitLab"、或粘贴 gitlab.com / 自建 GitLab 的 MR 链接时使用。核心流程：读 MR 信息 → 先读历史评论并核对是否已解决 → 通读 diff → 分级评审（附核实结论）→ 按用户选择回写（注记/行内评论/批准）。
 ---
 
-# GitLab MR Review
+# GitLab MR 代码评审
 
-你是资深代码评审员，负责 GitLab Merge Request 评审。只基于给出的 diff 与上下文判断，不要臆造文件外事实。
+## 流程
 
-## 评审重点
+### 1. 解析 MR 地址
+从链接提取三要素：`host`（实例域名）、`project`（`组/项目`，如 `agent/insuranceagent`）、`iid`（数字）。
 
-1. **正确性**：边界条件、空值、并发竞态、错误处理遗漏、资源未释放、off-by-one
-2. **安全**：注入（SQL/命令/XSS）、鉴权绕过、越权、敏感信息泄漏、不安全反序列化、路径穿越、SSRF、硬编码密钥
-3. **可读性与可维护性**：命名、重复、过深嵌套、职责不清、与现有约定不一致
-4. **性能**：复杂度爆炸、N+1、全量扫描、内存/连接泄漏、同步阻塞、重复 IO
-5. **意图一致性**：实现是否符合 MR 标题与描述所声明的变更目标
+### 2. 预检环境
+- 确认 `glab` 已安装、已认证目标实例：`glab auth status`。
+- **自建实例关键坑**：`glab mr` 子命令默认走 gitlab.com，且 `glab mr view` 不支持 `--hostname`。必须用环境变量指定实例：
+  ```bash
+  export GITLAB_HOST=<自建实例域名>
+  ```
+  （`glab api` 支持 `--hostname`，`glab mr *` 只认 `GITLAB_HOST`。）
 
-## 判断原则
-
-- 正确性与安全优先于风格与微优化
-- 不确定的行号不要挂行内评论，写入 summary 即可
-- 跳过 lockfile、构建产物、二进制与生成代码
-- 无问题时明确 approve，不要硬凑 issue
-
-## 输出要求
-
-必须是严格 JSON：
-
-```json
-{
-  "summary": "2-5 句总体评价，中文",
-  "verdict": "approve | comment | request_changes",
-  "score": 0,
-  "positives": ["做得好的点"],
-  "issues": [
-    {
-      "severity": "high|medium|low",
-      "file": "相对路径",
-      "line": 123,
-      "side": "new|old",
-      "title": "一句话标题",
-      "body": "问题说明 + 可执行修改建议，中文"
-    }
-  ]
-}
+### 3. 读 MR 信息
+```bash
+glab mr view <iid> -R <project>
 ```
+确认标题、作者、源/目标分支、状态、评论数。
 
-- `issues` 按严重程度优先，style-only 问题放 low 或忽略
-- `side`：新增行用 `new`，删除/旧文件行用 `old`
-- 不要输出无关闲聊
+### 4. 先读历史评论并核对是否已解决（必做）
+这是评审的第一步，不是最后。拉全部 notes：
+```bash
+glab api "projects/<project编码>/merge_requests/<iid>/notes?per_page=100&sort=asc"
+```
+- 逐条总结前人（其他评审者）提出的问题；
+- 对每条对照**当前 diff** 判断：已解决 / 部分解决 / 未解决；
+- 未解决的在前言里点明，避免重复提出已解决的问题；
+- 系统 note（`system=true`）记录 commit/approve 等动作，可用来判断评审后是否有新提交。
+
+### 5. 拉取并通读 diff
+```bash
+glab mr diff <iid> -R <project> > /tmp/mr_<iid>.diff
+```
+- 记录文件变更规模（`grep -c '^+++ '`）；
+- **完整读取**整个 diff，不要只看摘要；
+- 提交后版本可能变化：回写前可用 `shasum` 对比重新拉取的 diff 确认评审对象没过期。
+
+### 6. 必要时拉源码上下文
+diff 不足以判断时，用 raw API 抓源码分支的关键文件，核实关键前提（见 review-guidance.md）：
+```bash
+glab api "projects/<project编码>/repository/files/<文件路径编码>/raw?ref=<分支>"
+```
+编码规则：路径中每个 `/` 写成 `%2F`（可用 `tr '/' '%2F'`）。
+
+### 7. 输出评审
+按严重度分级（🔴 高 / 🟠 中 / 🟡 低/建议）+ **已验证无问题清单**。每条给：文件位置、触发场景、具体建议。规则见 `references/review-guidance.md`。
+
+### 8. 回写（按用户选择）
+- 整体注记：`glab mr note create`（**`--message` 已废弃**，用 `glab mr note create <iid> -R <proj> --message "$(cat file)"`，或直接 `glab mr note create`）；
+- 行内评论：`glab mr create-comment`；
+- 批准：`glab mr approve <iid> -R <project>`。
+- 长文本先写文件再 `--message "$(cat file)"` 传入。
+
+## 工具脚本
+
+`scripts/fetch_mr.sh <iid> <project> [output_dir]` — 一次性抓取 MR 信息、全部评论、diff 到临时目录，适合评审开头直接调用。
+
+## 命令速查
+
+完整 glab 命令表见 `references/glab-commands.md`。
+
+## 评审要点
+
+分级标准、常见检查项、自建实例的坑见 `references/review-guidance.md`。
