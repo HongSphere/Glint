@@ -1,0 +1,16 @@
+.github/workflows/release.yml
+  h_b8a5bec9fccfca 45,47
+src-tauri/tauri.conf.json
+  h_b8a5bec9fccfca 36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "675d818363160e1ead8e954b6fbba0da49acec23",
+  "prompts": {},
+  "humans": {
+    "h_b8a5bec9fccfca": {
+      "author": "zhanghong <zhanghong@meibaokeji.com>"
+    }
+  }
+}
