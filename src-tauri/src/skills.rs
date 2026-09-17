@@ -29,8 +29,8 @@ fn parse_frontmatter(raw: &str) -> (Value, String) {
     (Value::Object(meta), body)
 }
 
-const DEFAULT_SKILL_GITLAB_MR: &str = include_str!("../skills/gitlab-mr-review/SKILL.md");
-const DEFAULT_SKILL_GUIDANCE: &str = include_str!("../skills/gitlab-mr-review/references/review-guidance.md");
+const DEFAULT_SKILL_GITLAB_MR: &str = include_str!("../skills/glint-mr-review/SKILL.md");
+const DEFAULT_SKILL_GUIDANCE: &str = include_str!("../skills/glint-mr-review/references/review-guidance.md");
 
 fn embedded_builtin_skills() -> Vec<Value> {
     let mut out = Vec::new();
@@ -42,18 +42,18 @@ fn embedded_builtin_skills() -> Vec<Value> {
     let id = meta
         .get("name")
         .and_then(|v| v.as_str())
-        .unwrap_or("gitlab-mr-review")
+        .unwrap_or("glint-mr-review")
         .to_string();
     let title = body
         .lines()
         .find(|l| l.starts_with("# "))
         .map(|l| l[2..].trim().to_string())
-        .unwrap_or_else(|| "GitLab MR Review".to_string());
+        .unwrap_or_else(|| "Glint MR Review".to_string());
     out.push(json!({
         "id": id,
         "name": title,
-        "description": meta.get("description").cloned().unwrap_or(json!("GitLab Merge Request AI 代码评审。对 MR diff 做正确性、安全、可维护性与性能审查，输出结构化 JSON。")),
-        "path": "builtin://gitlab-mr-review",
+        "description": meta.get("description").cloned().unwrap_or(json!("Glint Merge Request AI 代码评审专家。具备多语言全栈工程审查能力，输出结构化 JSON。")),
+        "path": "builtin://glint-mr-review",
         "body": body,
         "builtin": true,
     }));
@@ -225,10 +225,15 @@ pub fn resolve_skill(id: &str) -> Option<Value> {
     if id == "none" || id.is_empty() {
         return None;
     }
+    let actual_id = if id == "gitlab-mr-review" {
+        "glint-mr-review"
+    } else {
+        id
+    };
     let list = list_skills().ok()?;
     list.as_array()?
         .iter()
-        .find(|s| s["id"].as_str() == Some(id))
+        .find(|s| s["id"].as_str() == Some(actual_id) || s["id"].as_str() == Some(id))
         .cloned()
 }
 
@@ -361,8 +366,8 @@ mod tests {
         let skills = list_skills().expect("list_skills should succeed");
         let arr = skills.as_array().expect("skills should be an array");
         assert!(!arr.is_empty(), "skills array should never be empty");
-        let default_skill = arr.iter().find(|s| s["id"] == "gitlab-mr-review");
-        assert!(default_skill.is_some(), "gitlab-mr-review must be present");
+        let default_skill = arr.iter().find(|s| s["id"] == "glint-mr-review");
+        assert!(default_skill.is_some(), "glint-mr-review must be present");
         let sk = default_skill.unwrap();
         assert_eq!(sk["builtin"], true);
         let body = sk["body"].as_str().unwrap_or("");
@@ -370,9 +375,14 @@ mod tests {
         assert!(body.contains("review-guidance.md"), "skill body must include review-guidance reference");
         assert!(body.contains("高"), "skill body must include severity guidance");
 
-        let prompt = system_prompt("gitlab-mr-review");
+        // backward compatibility alias check
+        let resolved_alias = resolve_skill("gitlab-mr-review");
+        assert!(resolved_alias.is_some(), "gitlab-mr-review alias must resolve");
+        assert_eq!(resolved_alias.unwrap()["id"], "glint-mr-review");
+
+        let prompt = system_prompt("glint-mr-review");
         assert!(prompt.contains("GitLab Merge Request 评审"));
-        assert!(prompt.contains("<skill id=\"gitlab-mr-review\""));
+        assert!(prompt.contains("<skill id=\"glint-mr-review\""));
         assert!(prompt.contains("review-guidance.md"));
     }
 

@@ -47,7 +47,8 @@ async function loadSkills() {
   try {
     state.config = await window.api.getConfig();
     const skills = await window.api.listSkills();
-    const current = state.config?.review?.skillId || 'gitlab-mr-review';
+    const rawCurrent = state.config?.review?.skillId;
+    const current = (rawCurrent === 'gitlab-mr-review' ? 'glint-mr-review' : rawCurrent) || 'glint-mr-review';
     sel.innerHTML = '';
     const none = document.createElement('option');
     none.value = 'none';
@@ -67,8 +68,8 @@ async function loadSkills() {
     if (current === 'none') {
       sel.value = 'none';
     } else if (current === 'file' || !skills.some((s) => s.id === current)) {
-      sel.value = skills.some((s) => s.id === 'gitlab-mr-review')
-        ? 'gitlab-mr-review'
+      sel.value = skills.some((s) => s.id === 'glint-mr-review')
+        ? 'glint-mr-review'
         : 'none';
     } else {
       sel.value = current;
@@ -275,7 +276,7 @@ function readSettingsForm() {
       model: $('cfg-ai-model').value.trim(),
     },
     review: {
-      skillId: $('cfg-skill')?.value === 'file' ? 'gitlab-mr-review' : ($('cfg-skill')?.value || 'gitlab-mr-review'),
+      skillId: $('cfg-skill')?.value === 'file' ? 'glint-mr-review' : ($('cfg-skill')?.value || 'glint-mr-review'),
       skillDir: state.config?.review?.skillDir || '',
     },
     ui: {
@@ -720,7 +721,7 @@ function renderReview(result) {
       ? '通用评审'
       : result.skillId
         ? `${result.skillName || result.skillId}${result.skillBuiltin ? '（内置）' : '（自定义）'}`
-        : 'gitlab-mr-review（内置）';
+        : 'glint-mr-review（内置）';
 
   body.innerHTML = `
     <div class="review-summary">
@@ -836,7 +837,7 @@ async function postReview(opts = {}) {
     const res = await window.api.postReview({
       iid: state.lastReview.mr.iid,
       review: state.lastReview.review,
-      skillId: state.lastReview?.skillId || 'gitlab-mr-review',
+      skillId: state.lastReview?.skillId || 'glint-mr-review',
       skipInline: noInline,
     });
     if (!opts.silent) {

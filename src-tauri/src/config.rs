@@ -16,7 +16,7 @@ fn default_config() -> Value {
             "apiKey": "",
             "model": "ark-code-latest"
         },
-        "review": { "skipInline": false, "skillId": "gitlab-mr-review", "skillDir": "" },
+        "review": { "skipInline": false, "skillId": "glint-mr-review", "skillDir": "" },
         "update": { "owner": "HongSphere", "repo": "Glint", "channel": "latest" },
         "ui": { "theme": "system" },
         "cache": {
@@ -201,7 +201,8 @@ pub fn review_opts() -> (String, String) {
     let r = cfg.get("review").cloned().unwrap_or(json!({}));
     let skill_id = r["skillId"]
         .as_str()
-        .unwrap_or("gitlab-mr-review")
+        .map(|s| if s == "gitlab-mr-review" { "glint-mr-review" } else { s })
+        .unwrap_or("glint-mr-review")
         .to_string();
     let skill_dir = r["skillDir"].as_str().unwrap_or("").to_string();
     (skill_id, skill_dir)

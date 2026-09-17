@@ -294,7 +294,7 @@ pub async fn post_review(payload: Value) -> Result<Value, String> {
     let iid = payload["iid"].as_u64().unwrap_or(0);
     let review = payload.get("review").cloned().unwrap_or(json!({}));
     let skip_inline = payload["skipInline"].as_bool().unwrap_or(false);
-    let skill_id = payload["skillId"].as_str().unwrap_or("gitlab-mr-review");
+    let skill_id = payload["skillId"].as_str().unwrap_or("glint-mr-review");
     if iid == 0 {
         return Err("缺少 MR 编号".into());
     }

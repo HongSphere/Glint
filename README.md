@@ -311,7 +311,7 @@ Glint/
 │   ├── tauri.conf.json        # Tauri 2 窗口、打包与跨平台图标配置
 │   ├── icons/                 # 全尺寸高清跨平台应用图标（.icns, .ico, 32-512px .png）
 │   ├── skills/                # 内置默认评审提示词技能
-│   │   └── gitlab-mr-review/  # 默认通用审查技能模版 (SKILL.md)
+│   │   └── glint-mr-review/   # 默认多语言通用审查技能模版 (SKILL.md)
 │   └── src/
 │       ├── main.rs            # 应用程序执行主入口
 │       ├── lib.rs             # Tauri 插件注册与命令分发
