@@ -1,0 +1,26 @@
+README.md
+  h_b8a5bec9fccfca 314
+src-tauri/skills/glint-mr-review/SKILL.md
+  h_b8a5bec9fccfca 1-67
+src-tauri/skills/glint-mr-review/references/review-guidance.md
+  h_b8a5bec9fccfca 1-77
+src-tauri/src/config.rs
+  h_b8a5bec9fccfca 19,204-205
+src-tauri/src/review.rs
+  h_b8a5bec9fccfca 297
+src-tauri/src/skills.rs
+  h_b8a5bec9fccfca 32-33,45,51,55-56,228-232,236,369-370,378-383,385
+ui/app.js
+  h_b8a5bec9fccfca 50-51,71-72,279,724,840
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "cbd05991bba39c9ee5c54d0203822fa148ab41ec",
+  "prompts": {},
+  "humans": {
+    "h_b8a5bec9fccfca": {
+      "author": "zhanghong <zhanghong@meibaokeji.com>"
+    }
+  }
+}
